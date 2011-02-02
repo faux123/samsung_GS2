@@ -965,6 +965,12 @@ config USB_ANDROID_SAMSUNG_MTP
 	help
 	  Provides Media Transfer Protocol (MTP) support for samsung gadget driver.
 
+config USB_ANDROID_ACCESSORY
+	boolean "Android USB accessory function"
+	depends on USB_ANDROID
+	help
+	  Provides Android USB Accessory support for android gadget driver.
+
 config USB_ANDROID_RMNET
 	boolean "RmNet function driver"
 	depends on USB_ANDROID
