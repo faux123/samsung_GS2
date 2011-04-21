@@ -667,9 +667,9 @@ static int vfe31_config_axi(int mode, struct axidata *ad, uint32_t *ao)
 			VFE31_OUTPUT_MODE_PT;  /* thumbnail. */
 
 		/* this is thumbnail buffer. */
-		regp1 = &(ad->region[0]);
+		regp1 = &(ad->region[ad->bufnum1-1]);
 		/* this is main image buffer. */
-		regp2 = &(ad->region[ad->bufnum1]);
+		regp2 = &(ad->region[ad->bufnum1+ad->bufnum2-1]);
 
 		outp1 = &(vfe31_ctrl->outpath.out0);
 		outp2 = &(vfe31_ctrl->outpath.out1); /* snapshot */
@@ -710,7 +710,7 @@ static int vfe31_config_axi(int mode, struct axidata *ad, uint32_t *ao)
 				*p1 = (regp1->paddr + regp1->info.y_off);
 				p1 = ao + 30 + i;  /* wm4 for cbcr */
 				*p1 = (regp1->paddr + regp1->info.cbcr_off);
-				regp1++;
+				regp1--;
 			}
 
 			for (i = 0; i < 2; i++) {
@@ -718,21 +718,21 @@ static int vfe31_config_axi(int mode, struct axidata *ad, uint32_t *ao)
 				*p2 = (regp2->paddr + regp2->info.y_off);
 				p2 = ao + 36 + i;  /* wm5 for cbcr */
 				*p2 = (regp2->paddr + regp2->info.cbcr_off);
-				regp2++;
+				regp2--;
 			}
 
 			for (i = 2; i < ad->bufnum1; i++) {
 				ret = vfe31_add_free_buf(outp1, regp1);
 				if (ret < 0)
 					return ret;
-				regp1++;
+				regp1--;
 			}
 
 			for (i = 2; i < ad->bufnum2; i++) {
 				ret = vfe31_add_free_buf(outp2, regp2);
 				if (ret < 0)
 					return ret;
-				regp2++;
+				regp2--;
 			}
 		}
 		break;

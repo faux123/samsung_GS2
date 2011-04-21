@@ -43,8 +43,6 @@ DEFINE_MUTEX(ctrl_cmd_lock);
 
 #define CAMERA_STOP_VIDEO 58
 spinlock_t pp_prev_spinlock;
-spinlock_t pp_snap_spinlock;
-spinlock_t pp_thumb_spinlock;
 spinlock_t pp_stereocam_spinlock;
 spinlock_t st_frame_spinlock;
 
@@ -2298,6 +2296,7 @@ static int __msm_get_pic(struct msm_sync *sync,
 	struct msm_vfe_resp *vdata;
 	struct msm_vfe_phy_info *pphy;
 	struct msm_pmem_info pmem_info;
+	struct msm_frame *pframe;
 
 	qcmd = msm_dequeue(&sync->pict_q, list_pict);
 
@@ -2306,37 +2305,51 @@ static int __msm_get_pic(struct msm_sync *sync,
 		return -EAGAIN;
 	}
 
-	vdata = (struct msm_vfe_resp *)(qcmd->command);
-	pphy = &vdata->phy;
+	if (MSM_CAM_Q_PP_MSG != qcmd->type) {
+		vdata = (struct msm_vfe_resp *)(qcmd->command);
+		pphy = &vdata->phy;
 
-	rc = msm_pmem_frame_ptov_lookup2(sync,
-			pphy->y_phy,
-			&pmem_info,
-			1); /* mark pic frame in use */
+		rc = msm_pmem_frame_ptov_lookup2(sync,
+				pphy->y_phy,
+				&pmem_info,
+				1); /* mark pic frame in use */
 
-	if (rc < 0) {
-		pr_err("%s: cannot get pic frame, invalid lookup address y %x"
-			" cbcr %x\n", __func__, pphy->y_phy, pphy->cbcr_phy);
-		goto err;
+		if (rc < 0) {
+			pr_err("%s: cannot get pic frame, invalid lookup"
+				" address y %x cbcr %x\n",
+				__func__, pphy->y_phy, pphy->cbcr_phy);
+			goto err;
+		}
+
+		frame->ts = qcmd->ts;
+		frame->buffer = (unsigned long)pmem_info.vaddr;
+		frame->y_off = pmem_info.y_off;
+		frame->cbcr_off = pmem_info.cbcr_off;
+		frame->fd = pmem_info.fd;
+		if (sync->stereocam_enabled &&
+			sync->stereo_state != STEREO_RAW_SNAP_STARTED) {
+			if (pmem_info.type == MSM_PMEM_THUMBNAIL_VPE)
+				frame->path = OUTPUT_TYPE_T;
+			else
+				frame->path = OUTPUT_TYPE_S;
+		} else
+			frame->path = vdata->phy.output_id;
+
+		CDBG("%s: y %x, cbcr %x, qcmd %x, virt_addr %x\n",
+			__func__, pphy->y_phy,
+			pphy->cbcr_phy, (int) qcmd, (int) frame->buffer);
+	} else { /* PP */
+		pframe = (struct msm_frame *)(qcmd->command);
+		frame->ts = qcmd->ts;
+		frame->buffer = pframe->buffer;
+		frame->y_off = pframe->y_off;
+		frame->cbcr_off = pframe->cbcr_off;
+		frame->fd = pframe->fd;
+		frame->path = pframe->path;
+		CDBG("%s: PP y_off %x, cbcr_off %x, path %d vaddr 0x%x\n",
+			__func__, frame->y_off, frame->cbcr_off, frame->path,
+			(int) frame->buffer);
 	}
-
-	frame->ts = qcmd->ts;
-	frame->buffer = (unsigned long)pmem_info.vaddr;
-	frame->y_off = pmem_info.y_off;
-	frame->cbcr_off = pmem_info.cbcr_off;
-	frame->fd = pmem_info.fd;
-	if (sync->stereocam_enabled &&
-		sync->stereo_state != STEREO_RAW_SNAP_STARTED) {
-		if (pmem_info.type == MSM_PMEM_THUMBNAIL_VPE)
-			frame->path = OUTPUT_TYPE_T;
-		else
-			frame->path = OUTPUT_TYPE_S;
-	} else
-		frame->path = vdata->phy.output_id;
-
-	CDBG("%s: y %x, cbcr %x, qcmd %x, virt_addr %x\n",
-		__func__,
-		pphy->y_phy, pphy->cbcr_phy, (int) qcmd, (int) frame->buffer);
 
 err:
 	free_qcmd(qcmd);
@@ -2606,6 +2619,21 @@ static int msm_put_st_frame(struct msm_sync *sync, void __user *arg)
 	return 0;
 }
 
+static struct msm_queue_cmd *msm_get_pp_qcmd(struct msm_frame* frame)
+{
+	struct msm_queue_cmd *qcmd =
+		kmalloc(sizeof(struct msm_queue_cmd) +
+			sizeof(struct msm_frame), GFP_ATOMIC);
+	qcmd->command = (struct msm_frame *)(qcmd + 1);
+
+	qcmd->type = MSM_CAM_Q_PP_MSG;
+
+	ktime_get_ts(&(qcmd->ts));
+	memcpy(qcmd->command, frame, sizeof(struct msm_frame));
+	atomic_set(&(qcmd->on_heap), 1);
+	return qcmd;
+}
+
 static int msm_pp_release(struct msm_sync *sync, void __user *arg)
 {
 	unsigned long flags;
@@ -2647,18 +2675,22 @@ static int msm_pp_release(struct msm_sync *sync, void __user *arg)
 
 	if ((sync->pp_mask & PP_SNAP) ||
 		(sync->pp_mask & PP_RAW_SNAP)) {
-		spin_lock_irqsave(&pp_snap_spinlock, flags);
-		if (!sync->pp_snap) {
+		struct msm_frame frame;
+		struct msm_queue_cmd *qcmd;
+
+		if (copy_from_user(&frame,
+			arg,
+			sizeof(struct msm_frame))) {
+			ERR_COPY_FROM_USER();
+			return -EFAULT;
+		}
+		qcmd = msm_get_pp_qcmd(&frame);
+		if (!qcmd) {
 			pr_err("%s: no snapshot to deliver!\n", __func__);
-			spin_unlock_irqrestore(&pp_snap_spinlock, flags);
 			return -EINVAL;
 		}
-		CDBG("%s: delivering pp_snap\n", __func__);
-		msm_enqueue(&sync->pict_q, &sync->pp_snap->list_pict);
-		msm_enqueue(&sync->pict_q, &sync->pp_thumb->list_pict);
-		sync->pp_snap = NULL;
-		sync->pp_thumb = NULL;
-		spin_unlock_irqrestore(&pp_snap_spinlock, flags);
+		CDBG("%s: delivering pp snap\n", __func__);
+		msm_enqueue(&sync->pict_q, &qcmd->list_pict);
 	}
 
 done:
@@ -3339,21 +3371,8 @@ static void msm_vfe_sync(struct msm_vfe_resp *vdata,
 			break;
 		}
 		if (sync->pp_mask & PP_SNAP) {
-			spin_lock_irqsave(&pp_thumb_spinlock, flags);
-			sync->thumb_count--;
-			if (!sync->pp_thumb && (0 >= sync->thumb_count)) {
-				CDBG("%s: pp sending thumbnail to config\n",
-					__func__);
-				sync->pp_thumb = qcmd;
-				spin_unlock_irqrestore(&pp_thumb_spinlock,
-					flags);
-				if (atomic_read(&qcmd->on_heap))
-					atomic_add(1, &qcmd->on_heap);
-			} else {
-				spin_unlock_irqrestore(&pp_thumb_spinlock,
-					flags);
-			}
-			break;
+			CDBG("%s: pp sending thumbnail to config\n",
+				__func__);
 		} else {
 			msm_enqueue(&sync->pict_q, &qcmd->list_pict);
 			return;
@@ -3398,21 +3417,8 @@ static void msm_vfe_sync(struct msm_vfe_resp *vdata,
 			break;
 		}
 		if (sync->pp_mask & PP_SNAP) {
-			spin_lock_irqsave(&pp_snap_spinlock, flags);
-			sync->snap_count--;
-			if (!sync->pp_snap && (0 >= sync->snap_count)) {
-				CDBG("%s: pp sending main image to config\n",
-					__func__);
-				sync->pp_snap = qcmd;
-				spin_unlock_irqrestore(&pp_snap_spinlock,
-					flags);
-				if (atomic_read(&qcmd->on_heap))
-					atomic_add(1, &qcmd->on_heap);
-			} else {
-				spin_unlock_irqrestore(&pp_snap_spinlock,
-					flags);
-			}
-			break;
+			CDBG("%s: pp sending main image to config\n",
+				__func__);
 		} else {
 			CDBG("%s: enqueue to picture queue\n", __func__);
 			msm_enqueue(&sync->pict_q, &qcmd->list_pict);
@@ -3513,13 +3519,6 @@ static void msm_vfe_sync(struct msm_vfe_resp *vdata,
 		if (sync->pp_mask & (PP_SNAP | PP_RAW_SNAP)) {
 			CDBG("%s: PP_SNAP in progress: pp_mask %x\n",
 				__func__, sync->pp_mask);
-			spin_lock_irqsave(&pp_snap_spinlock, flags);
-			if (sync->pp_snap)
-				pr_warning("%s: overwriting pp_snap!\n",
-					__func__);
-			CDBG("%s: sending snapshot to config\n",
-				__func__);
-			spin_unlock_irqrestore(&pp_snap_spinlock, flags);
 		} else {
 			if (atomic_read(&qcmd->on_heap))
 				atomic_add(1, &qcmd->on_heap);
