@@ -528,6 +528,10 @@ static uint32_t audio_mvs_get_media_type(uint32_t mvs_mode, uint32_t rate_type)
 		media_type = VSS_MEDIA_ID_PCM_WB;
 		break;
 
+	case MVS_MODE_PCM_WB:
+		media_type = VSS_MEDIA_ID_PCM_WB;
+		break;
+
 	default:
 		media_type = VSS_MEDIA_ID_PCM_NB;
 	}
