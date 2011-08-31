@@ -44,7 +44,7 @@ enum {
 	SOFT_PAUSE_CURVE_LOG,
 };
 
-#define SOFT_VOLUME_PERIOD       40   /* ramp up/down for 40ms    */
+#define SOFT_VOLUME_PERIOD       30   /* ramp up/down for 30ms    */
 #define SOFT_VOLUME_STEP         2000 /* Step value 2ms or 2000us */
 enum {
 	SOFT_VOLUME_CURVE_LINEAR = 0,
