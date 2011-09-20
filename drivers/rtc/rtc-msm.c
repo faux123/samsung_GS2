@@ -152,12 +152,18 @@ static struct suspend_state_info suspend_state = {ATOMIC_INIT(0), 0};
 
 void msmrtc_updateatsuspend(struct timespec *ts)
 {
-	int64_t now, sleep;
+	int64_t now, sleep, sclk_max;
 
 	if (atomic_read(&suspend_state.state)) {
-		now = msm_timer_get_sclk_time(NULL);
+		now = msm_timer_get_sclk_time(&sclk_max);
+
 		if (now && suspend_state.tick_at_suspend) {
-			sleep = now - suspend_state.tick_at_suspend;
+			if (now < suspend_state.tick_at_suspend) {
+				sleep = sclk_max -
+					suspend_state.tick_at_suspend + now;
+			} else
+				sleep = now - suspend_state.tick_at_suspend;
+
 			timespec_add_ns(ts, sleep);
 			suspend_state.tick_at_suspend = now;
 		} else
