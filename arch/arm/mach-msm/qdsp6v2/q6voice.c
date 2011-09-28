@@ -27,6 +27,7 @@
 #include <linux/completion.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>
+#include <linux/delay.h>
 #include <mach/qdsp6v2/audio_dev_ctl.h>
 #include <mach/dal.h>
 #include <mach/qdsp6v2/q6voice.h>
@@ -2388,6 +2389,7 @@ static void voice_auddev_cb_function(u32 evt_id,
 	struct voice_data *v = &voice;
 	struct sidetone_cal sidetone_cal_data;
 	int rc = 0;
+	int rc1 = 0;
 	pr_info("auddev_cb_function, evt_id=%d,\n", evt_id);
 	if ((evt_id != AUDDEV_EVT_START_VOICE) ||
 			(evt_id != AUDDEV_EVT_END_VOICE)) {
@@ -2414,13 +2416,28 @@ static void voice_auddev_cb_function(u32 evt_id,
 						"failed\n", __func__);
 					return;
 				}
+				rc1 = voice_create_mvm_cvs_session(v);
+				if (rc1 < 0) {
+					pr_err("%s: create mvm-cvs failed\n",
+						__func__);
+					msleep(100);
+					rc = voice_apr_register(v);
+					if (rc < 0) {
+						mutex_unlock(&v->lock);
+						pr_err("%s: voice apr regn"
+							"failed\n", __func__);
+						return;
+					}
+					rc1 = voice_create_mvm_cvs_session(v);
+					if (rc1 < 0) {
+						mutex_unlock(&v->lock);
+						pr_err("%s: Retry mvm-cvs"
+								" failed\n",
+								__func__);
+						return;
+					}
+				}
 
-#if defined(CONFIG_KOR_MODEL_SHV_E110S) || defined(CONFIG_KOR_MODEL_SHV_E120S) || defined(CONFIG_KOR_MODEL_SHV_E120K) ||defined (CONFIG_KOR_MODEL_SHV_E120L)||defined(CONFIG_USA_MODEL_SGH_I727) || defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_JPN_MODEL_SC_03D)
-				v->dev_rx.volume = evt_payload->voc_vm_info.dev_vm_val.vol;
-				//printk("%s AUDDEV_EVT_START_VOICE - v->dev_rx.volume =%d\n", __func__ , v->dev_rx.volume);
-
-#endif 
-				voice_create_mvm_cvs_session(v);
 				voice_setup_modem_voice(v);
 				voice_attach_vocproc(v);
 				voice_send_start_voice_cmd(v);
