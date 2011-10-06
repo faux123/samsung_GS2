@@ -20,16 +20,6 @@
 #include "xvmalloc.h"
 #include "xvmalloc_int.h"
 
-static void stat_inc(u64 *value)
-{
-	*value = *value + 1;
-}
-
-static void stat_dec(u64 *value)
-{
-	*value = *value - 1;
-}
-
 static int test_flag(struct block_header *block, enum blockflags flag)
 {
 	return block->prev & BIT(flag);
@@ -187,7 +177,7 @@ static void insert_block(struct xv_pool *pool, struct page *page, u32 offset,
 	slindex = get_index_for_insert(block->size);
 	flindex = slindex / BITS_PER_LONG;
 
-	block->link.prev_page = 0;
+	block->link.prev_page = NULL;
 	block->link.prev_offset = 0;
 	block->link.next_page = pool->freelist[slindex].page;
 	block->link.next_offset = pool->freelist[slindex].offset;
@@ -217,7 +207,7 @@ static void remove_block_head(struct xv_pool *pool,
 
 	pool->freelist[slindex].page = block->link.next_page;
 	pool->freelist[slindex].offset = block->link.next_offset;
-	block->link.prev_page = 0;
+	block->link.prev_page = NULL;
 	block->link.prev_offset = 0;
 
 	if (!pool->freelist[slindex].page) {
@@ -232,7 +222,7 @@ static void remove_block_head(struct xv_pool *pool,
 		 */
 		tmpblock = get_ptr_atomic(pool->freelist[slindex].page,
 				pool->freelist[slindex].offset, KM_USER1);
-		tmpblock->link.prev_page = 0;
+		tmpblock->link.prev_page = NULL;
 		tmpblock->link.prev_offset = 0;
 		put_ptr_atomic(tmpblock, KM_USER1);
 	}
@@ -284,7 +274,7 @@ static int grow_pool(struct xv_pool *pool, gfp_t flags)
 	if (unlikely(!page))
 		return -ENOMEM;
 
-	stat_inc(&pool->total_pages);
+	pool->total_pages++;
 
 	spin_lock(&pool->lock);
 	block = get_ptr_atomic(page, 0, KM_USER0);
@@ -361,8 +351,6 @@ int xv_malloc(struct xv_pool *pool, u32 size, struct page **page,
 
 	if (!*page) {
 		spin_unlock(&pool->lock);
-		if (flags & GFP_NOWAIT)
-			return -ENOMEM;
 		error = grow_pool(pool, flags);
 		if (unlikely(error))
 			return error;
@@ -472,7 +460,7 @@ void xv_free(struct xv_pool *pool, struct page *page, u32 offset)
 		spin_unlock(&pool->lock);
 
 		__free_page(page);
-		stat_dec(&pool->total_pages);
+		pool->total_pages--;
 		return;
 	}
 
