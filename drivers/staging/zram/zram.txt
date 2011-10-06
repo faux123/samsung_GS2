@@ -73,4 +73,4 @@ Please report any problems at:
  - Issue tracker: http://code.google.com/p/compcache/issues/list
 
 Nitin Gupta
-ngupta@xxxxxxxxxx
+ngupta@vflare.org

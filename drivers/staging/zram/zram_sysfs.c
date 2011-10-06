@@ -18,30 +18,14 @@
 
 #include "zram_drv.h"
 
-/*
- * Individual percpu values can go negative but the sum across all CPUs
- * must always be positive (we store various counts). So, return sum as
- * unsigned value.
- */
-static u64 zram_get_stat(struct zram *zram, enum zram_stats_index idx)
+static u64 zram_stat64_read(struct zram *zram, u64 *v)
 {
-	int cpu;
-	s64 val = 0;
+	u64 val;
 
-	for_each_possible_cpu(cpu) {
-		s64 temp;
-		unsigned int start;
-		struct zram_stats_cpu *stats;
+	spin_lock(&zram->stat64_lock);
+	val = *v;
+	spin_unlock(&zram->stat64_lock);
 
-		stats = per_cpu_ptr(zram->stats, cpu);
-		do {
-			start = u64_stats_fetch_begin(&stats->syncp);
-			temp = stats->count[idx];
-		} while (u64_stats_fetch_retry(&stats->syncp, start));
-		val += temp;
-	}
-
-	WARN_ON(val < 0);
 	return val;
 }
 
@@ -134,7 +118,7 @@ static ssize_t num_reads_show(struct device *dev,
 	struct zram *zram = dev_to_zram(dev);
 
 	return sprintf(buf, "%llu\n",
-		zram_get_stat(zram, ZRAM_STAT_NUM_READS));
+		zram_stat64_read(zram, &zram->stats.num_reads));
 }
 
 static ssize_t num_writes_show(struct device *dev,
@@ -143,7 +127,7 @@ static ssize_t num_writes_show(struct device *dev,
 	struct zram *zram = dev_to_zram(dev);
 
 	return sprintf(buf, "%llu\n",
-		zram_get_stat(zram, ZRAM_STAT_NUM_WRITES));
+		zram_stat64_read(zram, &zram->stats.num_writes));
 }
 
 static ssize_t invalid_io_show(struct device *dev,
@@ -152,7 +136,7 @@ static ssize_t invalid_io_show(struct device *dev,
 	struct zram *zram = dev_to_zram(dev);
 
 	return sprintf(buf, "%llu\n",
-		zram_get_stat(zram, ZRAM_STAT_INVALID_IO));
+		zram_stat64_read(zram, &zram->stats.invalid_io));
 }
 
 static ssize_t notify_free_show(struct device *dev,
@@ -161,16 +145,7 @@ static ssize_t notify_free_show(struct device *dev,
 	struct zram *zram = dev_to_zram(dev);
 
 	return sprintf(buf, "%llu\n",
-		zram_get_stat(zram, ZRAM_STAT_NOTIFY_FREE));
-}
-
-static ssize_t discard_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct zram *zram = dev_to_zram(dev);
-
-	return sprintf(buf, "%llu\n",
-		zram_get_stat(zram, ZRAM_STAT_DISCARD));
+		zram_stat64_read(zram, &zram->stats.notify_free));
 }
 
 static ssize_t zero_pages_show(struct device *dev,
@@ -178,8 +153,7 @@ static ssize_t zero_pages_show(struct device *dev,
 {
 	struct zram *zram = dev_to_zram(dev);
 
-	return sprintf(buf, "%llu\n",
-		zram_get_stat(zram, ZRAM_STAT_PAGES_ZERO));
+	return sprintf(buf, "%u\n", zram->stats.pages_zero);
 }
 
 static ssize_t orig_data_size_show(struct device *dev,
@@ -188,7 +162,7 @@ static ssize_t orig_data_size_show(struct device *dev,
 	struct zram *zram = dev_to_zram(dev);
 
 	return sprintf(buf, "%llu\n",
-		zram_get_stat(zram, ZRAM_STAT_PAGES_STORED) << PAGE_SHIFT);
+		(u64)(zram->stats.pages_stored) << PAGE_SHIFT);
 }
 
 static ssize_t compr_data_size_show(struct device *dev,
@@ -197,7 +171,7 @@ static ssize_t compr_data_size_show(struct device *dev,
 	struct zram *zram = dev_to_zram(dev);
 
 	return sprintf(buf, "%llu\n",
-		zram_get_stat(zram, ZRAM_STAT_COMPR_SIZE));
+		zram_stat64_read(zram, &zram->stats.compr_size));
 }
 
 static ssize_t mem_used_total_show(struct device *dev,
@@ -208,22 +182,20 @@ static ssize_t mem_used_total_show(struct device *dev,
 
 	if (zram->init_done) {
 		val = xv_get_total_size_bytes(zram->mem_pool) +
-			(zram_get_stat(zram, ZRAM_STAT_PAGES_EXPAND)
-				<< PAGE_SHIFT);
+			((u64)(zram->stats.pages_expand) << PAGE_SHIFT);
 	}
 
 	return sprintf(buf, "%llu\n", val);
 }
 
-static DEVICE_ATTR(disksize, S_IRUGO | S_IWUGO,
+static DEVICE_ATTR(disksize, S_IRUGO | S_IWUSR,
 		disksize_show, disksize_store);
 static DEVICE_ATTR(initstate, S_IRUGO, initstate_show, NULL);
-static DEVICE_ATTR(reset, S_IWUGO, NULL, reset_store);
+static DEVICE_ATTR(reset, S_IWUSR, NULL, reset_store);
 static DEVICE_ATTR(num_reads, S_IRUGO, num_reads_show, NULL);
 static DEVICE_ATTR(num_writes, S_IRUGO, num_writes_show, NULL);
 static DEVICE_ATTR(invalid_io, S_IRUGO, invalid_io_show, NULL);
 static DEVICE_ATTR(notify_free, S_IRUGO, notify_free_show, NULL);
-static DEVICE_ATTR(discard, S_IRUGO, discard_show, NULL);
 static DEVICE_ATTR(zero_pages, S_IRUGO, zero_pages_show, NULL);
 static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
 static DEVICE_ATTR(compr_data_size, S_IRUGO, compr_data_size_show, NULL);
@@ -237,7 +209,6 @@ static struct attribute *zram_disk_attrs[] = {
 	&dev_attr_num_writes.attr,
 	&dev_attr_invalid_io.attr,
 	&dev_attr_notify_free.attr,
-	&dev_attr_discard.attr,
 	&dev_attr_zero_pages.attr,
 	&dev_attr_orig_data_size.attr,
 	&dev_attr_compr_data_size.attr,
@@ -248,4 +219,3 @@ static struct attribute *zram_disk_attrs[] = {
 struct attribute_group zram_disk_attr_group = {
 	.attrs = zram_disk_attrs,
 };
-
