@@ -33,6 +33,7 @@
 #include <mach/qdsp6v2/apr_audio.h>
 #include <mach/qdsp6v2/q6asm.h>
 
+#define AUDIO_AAC_DUAL_MONO_INVALID -1
 #define ADRV_STATUS_AIO_INTF 0x00000001	/* AIO interface */
 #define ADRV_STATUS_FSYNC 0x00000008
 #define ADRV_STATUS_PAUSE 0x00000010
@@ -1395,11 +1396,57 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	case AUDIO_SET_AAC_CONFIG: {
+		struct msm_audio_aac_config *aac_config;
+		pr_debug("%s: AUDIO_SET_AAC_CONFIG\n", __func__);
 		if (copy_from_user(&audio->aac_config, (void *)arg,
 				 sizeof(struct msm_audio_aac_config))) {
 			rc = -EFAULT;
 			break;
-		}
+		} else {
+			uint16_t sce_left = 1, sce_right = 2;
+			aac_config = &audio->aac_config;
+			if ((aac_config->dual_mono_mode <
+				AUDIO_AAC_DUAL_MONO_PL_PR) ||
+				(aac_config->dual_mono_mode >
+				AUDIO_AAC_DUAL_MONO_PL_SR)) {
+				pr_err("%s:AUDIO_SET_AAC_CONFIG: Invalid"
+					"dual_mono mode =%d\n", __func__,
+					aac_config->dual_mono_mode);
+			} else {
+				/* convert the data from user into sce_left
+				 * and sce_right based on the definitions
+				 */
+				pr_debug("%s: AUDIO_SET_AAC_CONFIG: modify"
+					 "dual_mono mode =%d\n", __func__,
+					 aac_config->dual_mono_mode);
+				switch (aac_config->dual_mono_mode) {
+				case AUDIO_AAC_DUAL_MONO_PL_PR:
+					sce_left = 1;
+					sce_right = 1;
+					break;
+				case AUDIO_AAC_DUAL_MONO_SL_SR:
+					sce_left = 2;
+					sce_right = 2;
+					break;
+				case AUDIO_AAC_DUAL_MONO_SL_PR:
+					sce_left = 2;
+					sce_right = 1;
+					break;
+				case AUDIO_AAC_DUAL_MONO_PL_SR:
+				default:
+					sce_left = 1;
+					sce_right = 2;
+					break;
+				}
+				rc = q6asm_cfg_dual_mono_aac(audio->ac,
+							sce_left, sce_right);
+				if (rc < 0)
+					pr_err("%s: asm cmd dualmono failed"
+						" rc=%d\n", __func__, rc);
+			}
+
+			}
+
 		break;
 	}
 	case AUDIO_GET_STREAM_CONFIG: {
@@ -1530,6 +1577,7 @@ static int audio_open(struct inode *inode, struct file *file)
 {
 	struct q6audio *audio = NULL;
 	int rc = 0;
+	struct msm_audio_aac_config *aac_config = NULL;
 	int i;
 	struct audaac_event *e_node = NULL;
 
@@ -1544,6 +1592,8 @@ static int audio_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 
+	aac_config = &audio->aac_config;
+
 	/* Settings will be re-config at AUDIO_SET_CONFIG,
 	 * but at least we need to have initial config
 	 */
@@ -1554,6 +1604,7 @@ static int audio_open(struct inode *inode, struct file *file)
 	audio->pcm_cfg.sample_rate = 48000;
 	audio->pcm_cfg.channel_count = 2;
 
+	aac_config->dual_mono_mode = AUDIO_AAC_DUAL_MONO_INVALID;
 	audio->ac = q6asm_audio_client_alloc((app_cb) q6_audaac_cb,
 					     (void *)audio);
 
