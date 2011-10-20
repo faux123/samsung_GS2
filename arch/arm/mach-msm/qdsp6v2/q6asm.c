@@ -1127,8 +1127,8 @@ int q6asm_enc_cfg_blk_pcm(struct audio_client *ac,
 
 	int rc = 0;
 
-	pr_debug("%s: Session %d\n", __func__, ac->session);
-
+	pr_debug("%s: Session %d, rate = %d, channels = %d\n", __func__,
+			 ac->session, rate, channels);
 
 	q6asm_add_hdr(ac, &enc_cfg.hdr, sizeof(enc_cfg), TRUE);
 
