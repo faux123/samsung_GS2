@@ -207,6 +207,14 @@ void cpu_idle(void)
 	}
 }
 
+/*
+ * cpu_idle_wait - Used to ensure that all the CPUs discard old value of
+ * pm_idle and update to new pm_idle value. Required while changing pm_idle
+ * handler on SMP systems.
+ *
+ * Caller must have changed pm_idle to the new value before the call. Old
+ * pm_idle value will not be used by any CPU after the return of this function.
+ */
 static char reboot_mode = 'h';
 
 int __init reboot_setup(char *str)
