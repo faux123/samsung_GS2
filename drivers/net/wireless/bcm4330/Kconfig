@@ -1,0 +1,12 @@
+config BROADCOM_WIFI
+	default m
+	tristate "Broadcom WiFi Driver"
+	---help---
+		Select this option to build Broadcom wlan driver
+
+config BROADCOM_WIFI_RESERVED_MEM
+    bool "Samsung Multimedia Devices"
+    depends on BROADCOM_WIFI
+    default y
+    ---help---
+      This is a configuration for broadcom WLAN driver.
