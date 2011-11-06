@@ -102,6 +102,7 @@ extern struct cred init_cred;
 # define INIT_PERF_EVENTS(tsk)
 #endif
 
+#define INIT_TASK_COMM "swapper"
 /*
  *  INIT_TASK is used to set up the first task table, touch at
  * your own risk!. Base=0, limit=0x1fffff (=2MB)
@@ -141,7 +142,7 @@ extern struct cred init_cred;
 	.cred		= &init_cred,					\
 	.cred_guard_mutex =						\
 		 __MUTEX_INITIALIZER(tsk.cred_guard_mutex),		\
-	.comm		= "swapper",					\
+	.comm		= INIT_TASK_COMM,				\
 	.thread		= INIT_THREAD,					\
 	.fs		= &init_fs,					\
 	.files		= &init_files,					\
