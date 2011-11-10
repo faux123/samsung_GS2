@@ -40,7 +40,7 @@
 #define WDT0_BITE_TIME	(MSM_TMR0_BASE + 0x5C)
 
 /* Watchdog pet interval in ms */
-#define PET_DELAY 3000
+#define PET_DELAY 10000
 static unsigned long delay_time;
 static unsigned long long last_pet;
 
