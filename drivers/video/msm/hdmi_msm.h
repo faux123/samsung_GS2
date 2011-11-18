@@ -38,15 +38,15 @@ const char *hdmi_msm_name(uint32 offset);
 void hdmi_outp(uint32 offset, uint32 value);
 uint32 hdmi_inp(uint32 offset);
 
-#define HDMI_OUTP_ND(offset, value)	outpdw(MSM_HDMI_BASE+(offset), (value))
+#define HDMI_OUTP_ND(offset, value)	outpdw(HDMI_BASE+(offset), (value))
 #define HDMI_OUTP(offset, value)	hdmi_outp((offset), (value))
-#define HDMI_INP_ND(offset)		inpdw(MSM_HDMI_BASE+(offset))
+#define HDMI_INP_ND(offset)		inpdw(HDMI_BASE+(offset))
 #define HDMI_INP(offset)		hdmi_inp((offset))
 #else
-#define HDMI_OUTP_ND(offset, value)	outpdw(MSM_HDMI_BASE+(offset), (value))
-#define HDMI_OUTP(offset, value)	outpdw(MSM_HDMI_BASE+(offset), (value))
-#define HDMI_INP_ND(offset)		inpdw(MSM_HDMI_BASE+(offset))
-#define HDMI_INP(offset)		inpdw(MSM_HDMI_BASE+(offset))
+#define HDMI_OUTP_ND(offset, value)	outpdw(HDMI_BASE+(offset), (value))
+#define HDMI_OUTP(offset, value)	outpdw(HDMI_BASE+(offset), (value))
+#define HDMI_INP_ND(offset)		inpdw(HDMI_BASE+(offset))
+#define HDMI_INP(offset)		inpdw(HDMI_BASE+(offset))
 #endif
 
 
