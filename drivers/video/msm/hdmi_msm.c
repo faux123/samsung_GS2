@@ -3515,7 +3515,6 @@ static void hdmi_msm_audio_setup(void)
 		external_common_state->video_resolution,
 		MSM_HDMI_SAMPLE_RATE_48KHZ, channels);
 	hdmi_msm_audio_info_setup(TRUE, channels, 0, FALSE);
-	hdmi_msm_audio_ctrl_setup(TRUE, 1);
 
 	/* Turn on Audio FIFO and SAM DROP ISR */
 	HDMI_OUTP(0x02CC, HDMI_INP(0x02CC) | BIT(1) | BIT(3));
