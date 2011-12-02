@@ -25,7 +25,7 @@ struct sdio_tty_ciq {
 	void *sdio_tty_handle;
 };
 
-static struct sdio_tty_ciq sdio_tty_ciq;
+//static struct sdio_tty_ciq sdio_tty_ciq;
 
 /*
  * Enable sdio_tty debug messages
@@ -36,6 +36,7 @@ module_param(debug_msg_on, int, 0);
 
 static int sdio_tty_probe(struct platform_device *pdev)
 {
+	/*
 	sdio_tty_ciq.sdio_tty_handle = sdio_tty_init_tty(SDIO_TTY_DEV,
 							 "SDIO_CIQ");
 	if (!sdio_tty_ciq.sdio_tty_handle) {
@@ -47,12 +48,13 @@ static int sdio_tty_probe(struct platform_device *pdev)
 	if (debug_msg_on)
 		sdio_tty_enable_debug_msg(sdio_tty_ciq.sdio_tty_handle,
 					  debug_msg_on);
-
-	return 0;
+	*/
+	return -ENODEV;
 }
 
 static int sdio_tty_test_probe(struct platform_device *pdev)
 {
+	/*
 	sdio_tty_ciq.sdio_tty_handle = sdio_tty_init_tty(SDIO_TTY_DEV_TEST,
 							 "SDIO_CIQ");
 	if (!sdio_tty_ciq.sdio_tty_handle) {
@@ -64,12 +66,13 @@ static int sdio_tty_test_probe(struct platform_device *pdev)
 	if (debug_msg_on)
 		sdio_tty_enable_debug_msg(sdio_tty_ciq.sdio_tty_handle,
 					  debug_msg_on);
-
-	return 0;
+	*/
+	return -ENODEV;
 }
 
 static int sdio_tty_remove(struct platform_device *pdev)
 {
+	/*
 	int ret = 0;
 
 	pr_info(TTY_CIQ_MODULE_NAME ": %s", __func__);
@@ -79,7 +82,7 @@ static int sdio_tty_remove(struct platform_device *pdev)
 		       __func__);
 		return ret;
 	}
-
+	*/
 	return 0;
 }
 
