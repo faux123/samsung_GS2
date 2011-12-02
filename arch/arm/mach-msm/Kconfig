@@ -1082,6 +1082,14 @@ config MSM_DALRPC_TEST
 	help
 	  Exercises DAL RPC calls to QDSP6.
 
+config BOOST_L2_BANDWIDTH
+	bool "Boost L2 Bandwidth"
+	default n
+
+config CPU_OVERCLOCKING
+	bool "Overclock CPU"
+	default n
+
 config CPU_VOLTAGE_TABLE
 	bool "Enable CPU Voltage Table via sysfs for adjustements"
 	default n
