@@ -783,7 +783,7 @@ void check_chip_calibration(unsigned char one_touch_input_flag)
                     }
                 }
 
-			printk(KERN_ERR"[TSP] t: %d, a: %d\n",tch_ch,atch_ch);
+			//printk(KERN_ERR"[TSP] t: %d, a: %d\n",tch_ch,atch_ch);
 
             /* send page up command so we can detect when data updates next time,
              * page byte will sit at 1 until we next send F3 command */
@@ -1286,11 +1286,12 @@ static void report_input_data(struct mxt224_data *data)
 		input_mt_sync(data->input_dev);
 
 		if (touch_is_pressed_arr[i] < 2) {
+		/*
 			if (g_debug_switch)
 				printk(KERN_DEBUG "[TSP] ID-%d, %4d,%4d  UD:%d \n", i, data->fingers[i].x, data->fingers[i].y, touch_is_pressed_arr[i]);
 			else
-				printk(KERN_DEBUG "[TSP] ID-%d,UD:%d \n", i, 
-					touch_is_pressed_arr[i]);
+				printk(KERN_DEBUG "[TSP] ID-%d,UD:%d \n", i, touch_is_pressed_arr[i]);
+		*/
 		}
 
 		tsp_pattern_tracking(i, data->fingers[i].x, data->fingers[i].y);
