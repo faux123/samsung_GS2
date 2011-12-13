@@ -42,13 +42,7 @@
 #define DRIVER_NAME	"msm_otg"
 static void otg_reset(struct otg_transceiver *xceiv, int phy_reset);
 static void msm_otg_set_vbus_state(int online);
-#ifdef CONFIG_USB_EHCI_MSM_72K
-static void msm_otg_set_id_state(int id);
-#else
-static void msm_otg_set_id_state(int id)
-{
-}
-#endif
+static void msm_otg_set_id_state(int online);
 
 struct msm_otg *the_msm_otg;
 
@@ -56,7 +50,9 @@ static int is_host(void)
 {
 	struct msm_otg *dev = the_msm_otg;
 
-	if (dev->pdata->otg_mode == OTG_ID)
+	if (dev->pmic_id_notif_supp)
+		return dev->pmic_id_status ? 0 : 1;
+	else if (dev->pdata->otg_mode == OTG_ID)
 		return (OTGSC_ID & __raw_readl(USB_OTGSC)) ? 0 : 1;
 	else
 		return !test_bit(ID, &dev->inputs);
@@ -144,38 +140,24 @@ static int usb_ulpi_read(struct otg_transceiver *xceiv, u32 reg)
 #ifdef CONFIG_USB_EHCI_MSM_72K
 static void enable_idgnd(struct msm_otg *dev)
 {
-	unsigned temp;
-
 	/* Do nothing if instead of ID pin, USER controls mode switch */
 	if (dev->pdata->otg_mode == OTG_USER_CONTROL)
 		return;
 
 	ulpi_write(dev, (1<<4), 0x0E);
 	ulpi_write(dev, (1<<4), 0x11);
-	ulpi_write(dev, (1<<0), 0x0B);
-	temp = OTGSC_IDIE | OTGSC_IDPU;
-	writel_relaxed(readl_relaxed(USB_OTGSC) | temp, USB_OTGSC);
+	__raw_writel(__raw_readl(USB_OTGSC) | OTGSC_IDIE, USB_OTGSC);
 }
 
 static void disable_idgnd(struct msm_otg *dev)
 {
-	unsigned temp;
-
 	/* Do nothing if instead of ID pin, USER controls mode switch */
 	if (dev->pdata->otg_mode == OTG_USER_CONTROL)
 		return;
-	temp = OTGSC_IDIE | OTGSC_IDPU;
-	writel_relaxed(readl_relaxed(USB_OTGSC) & ~temp, USB_OTGSC);
+
 	ulpi_write(dev, (1<<4), 0x0F);
 	ulpi_write(dev, (1<<4), 0x12);
-	ulpi_write(dev, (1<<0), 0x0C);
-}
-#else
-static void enable_idgnd(struct msm_otg *dev)
-{
-}
-static void disable_idgnd(struct msm_otg *dev)
-{
+	__raw_writel(__raw_readl(USB_OTGSC) & ~OTGSC_IDIE, USB_OTGSC);
 }
 #endif
 
@@ -247,9 +229,6 @@ static void set_aca_id_inputs(struct msm_otg *dev)
 #define get_aca_bmaxpower(dev)		(dev->b_max_power)
 #define set_aca_bmaxpower(dev, power)	(dev->b_max_power = power)
 #else
-static void set_aca_id_inputs(struct msm_otg *dev)
-{
-}
 #define get_aca_bmaxpower(dev)		0
 #define set_aca_bmaxpower(dev, power)
 #endif
@@ -717,31 +696,6 @@ static int msm_otg_suspend(struct msm_otg *dev)
 	 * 4. peripheral is supported, but, vbus is not routed to pmic
 	 */
 	host_bus_suspend = dev->otg.host && is_host();
-
-	/*
-	 *  Configure the PMIC ID only in case of cable disconnect.
-	 *  PMIC doesn't generate interrupt for ID_GND to ID_A
-	 *  transistion. hence use the PHY ID cricuit.
-	 */
-	if (dev->pdata->pmic_id_notif_init && !host_bus_suspend &&
-		!test_bit(ID_A, &dev->inputs)) {
-		disable_idgnd(dev);
-		ret = dev->pdata->pmic_id_notif_init(
-			&msm_otg_set_id_state, 1);
-		if (!ret) {
-			dev->pmic_id_notif_supp = 1;
-			if (dev->pdata->pmic_id_irq)
-				dev->id_irq = dev->pdata->pmic_id_irq;
-		} else if (ret == -ENOTSUPP) {
-			pr_debug("%s:USB ID is not routed to pmic",
-			__func__);
-			enable_idgnd(dev);
-		} else {
-			pr_err("%s: pmic_id_ notif_init failed err:%d",
-				__func__, ret);
-		}
-	}
-
 	if ((dev->otg.gadget && chg_type == USB_CHG_TYPE__WALLCHARGER) ||
 		host_bus_suspend ||
 		(dev->otg.host && !dev->pmic_id_notif_supp) ||
@@ -798,8 +752,7 @@ static int msm_otg_suspend(struct msm_otg *dev)
 
 	atomic_set(&dev->in_lpm, 1);
 
-	 if (!host_bus_suspend && dev->pmic_vbus_notif_supp &&
-		!test_bit(ID_A, &dev->inputs)) {
+	if (!host_bus_suspend && dev->pmic_vbus_notif_supp) {
 		pr_debug("phy can power collapse: (%d)\n",
 			can_phy_power_collapse(dev));
 		if (can_phy_power_collapse(dev) && dev->pdata->ldo_enable) {
@@ -916,22 +869,8 @@ static void msm_otg_resume_w(struct work_struct *w)
 	}
 
 phy_resumed:
-	if (dev->pmic_id_notif_supp) {
-		dev->pdata->pmic_id_notif_init(&msm_otg_set_id_state, 0);
-		dev->pmic_id_notif_supp = 0;
-		enable_idgnd(dev);
-	}
-
 	/* Enable Idabc interrupts as these were disabled before entering LPM */
 	enable_idabc(dev);
-
-	/*
-	 * There is corner case where host won't be resumed
-	 * while transitioning from ID_GND to ID_A. In that
-	 * IDGND might have cleared and ID_A might not have updated
-	 * yet. Hence update the ACA states explicitly.
-	 */
-	set_aca_id_inputs(dev);
 
 	/* If resume signalling finishes before lpm exit, PCD is not set in
 	 * USBSTS register. Drive resume signal to the downstream device now
@@ -1042,12 +981,6 @@ static int msm_otg_set_suspend(struct otg_transceiver *xceiv, int suspend)
 				break;
 			}
 			udelay(10);
-		}
-		if (dev->pmic_id_notif_supp) {
-			dev->pdata->pmic_id_notif_init(
-				&msm_otg_set_id_state, 0);
-			dev->pmic_id_notif_supp = 0;
-			enable_idgnd(dev);
 		}
 out:
 		enable_idabc(dev);
@@ -1172,24 +1105,26 @@ static int msm_otg_set_host(struct otg_transceiver *xceiv, struct usb_bus *host)
 #endif
 	return 0;
 }
+#endif
 
-static void msm_otg_set_id_state(int id)
+void msm_otg_set_id_state(int id)
 {
 	struct msm_otg *dev = the_msm_otg;
 
-	if (!atomic_read(&dev->in_lpm))
+	if (id == dev->pmic_id_status)
 		return;
 
 	wake_lock(&dev->wlock);
 	if (id) {
 		set_bit(ID, &dev->inputs);
+		dev->pmic_id_status = 1;
 	} else {
 		clear_bit(ID, &dev->inputs);
 		set_bit(A_BUS_REQ, &dev->inputs);
+		dev->pmic_id_status = 0;
 	}
 	queue_work(dev->wq, &dev->sm_work);
 }
-#endif
 
 void msm_otg_set_vbus_state(int online)
 {
@@ -2031,7 +1966,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 		} else if (test_bit(ID_A, &dev->inputs)) {
 			dev->pdata->vbus_power(USB_PHY_INTEGRATED, 0);
 		} else if (!test_bit(ID, &dev->inputs)) {
-			msm_otg_set_power(&dev->otg, 0);
 			dev->pdata->vbus_power(USB_PHY_INTEGRATED, 1);
 		}
 		break;
@@ -2669,10 +2603,10 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (dev->pdata->phy_id_setup_init) {
-		ret = dev->pdata->phy_id_setup_init(1);
-		if (ret) {
-			pr_err("%s: phy_id_setup_init failed err:%d",
+	if (dev->pdata->pmic_id_notif_init) {
+		ret = dev->pdata->pmic_id_notif_init(&msm_otg_set_id_state, 1);
+		if (!ret) {
+			dev->pmic_id_notif_supp = 1;
 			/*
 			 * As a part of usb initialization checks the id
 			 * by that time if pmic doesn't generate ID interrupt,
@@ -2684,6 +2618,8 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 			 * (which indicates as micro-B)
 			 */
 			dev->pmic_id_status = 1;
+		} else if (ret != -ENOTSUPP) {
+			pr_err("%s: pmic_id_ notif_init failed err:%d",
 					__func__, ret);
 			goto free_pmic_vbus_notif;
 		}
@@ -2698,7 +2634,7 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 		if (ret) {
 			pr_err("%s: unable to enable vddcx digital core:%d\n",
 				__func__, ret);
-			goto free_phy_id_setup;
+			goto free_pmic_id_notif;
 		}
 	}
 
@@ -2809,9 +2745,9 @@ free_ldo_init:
 free_config_vddcx:
 	if (dev->pdata->init_vddcx)
 		dev->pdata->init_vddcx(0);
-free_phy_id_setup:
-	if (dev->pdata->phy_id_setup_init)
-		dev->pdata->phy_id_setup_init(0);
+free_pmic_id_notif:
+	if (dev->pdata->pmic_id_notif_init && dev->pmic_id_notif_supp)
+		dev->pdata->pmic_id_notif_init(&msm_otg_set_id_state, 0);
 free_pmic_vbus_notif:
 	if (dev->pdata->pmic_vbus_notif_init && dev->pmic_vbus_notif_supp)
 		dev->pdata->pmic_vbus_notif_init(&msm_otg_set_vbus_state, 0);
@@ -2879,9 +2815,6 @@ static int __exit msm_otg_remove(struct platform_device *pdev)
 
 	if (dev->pmic_vbus_notif_supp)
 		dev->pdata->pmic_vbus_notif_init(&msm_otg_set_vbus_state, 0);
-
-	if (dev->pdata->phy_id_setup_init)
-		dev->pdata->phy_id_setup_init(0);
 
 	if (dev->pmic_id_notif_supp)
 		dev->pdata->pmic_id_notif_init(&msm_otg_set_id_state, 0);
