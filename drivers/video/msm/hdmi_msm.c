@@ -733,7 +733,7 @@ static void hdmi_msm_turn_on(void);
 static int hdmi_msm_audio_off(void);
 static int hdmi_msm_read_edid(void);
 static void hdmi_msm_hpd_off(void);
-static void hdmi_msm_set_mode(boolean power_on);
+void hdmi_msm_set_mode(boolean power_on);
 
 extern void __gpio_set_value(unsigned gpio, int value);
 
