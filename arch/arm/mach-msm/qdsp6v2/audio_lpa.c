@@ -868,10 +868,6 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (rc < 0)
 				pr_err("%s: Send SoftVolume Param failed rc=%d\n",
 					__func__, rc);
-			rc = q6asm_set_softvolume(audio->ac, &softvol);
-			if (rc < 0)
-				pr_err("%s: Send SoftVolume Param failed rc=%d\n",
-					__func__, rc);
 			rc = q6asm_set_lrgain(audio->ac, 0x2000, 0x2000);
 			if (rc < 0)
 				pr_err("%s: Send channel gain failed rc=%d\n",
