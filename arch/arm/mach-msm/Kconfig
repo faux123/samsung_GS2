@@ -1086,6 +1086,10 @@ config BOOST_L2_BANDWIDTH
 	bool "Boost L2 Bandwidth"
 	default n
 
+config GPU_TURBO_BOOST
+	bool "Enable GPU Turbo mode from 266MHz to 320MHz"
+	default n
+
 config CPU_OVERCLOCKING
 	bool "Overclock CPU"
 	default n
