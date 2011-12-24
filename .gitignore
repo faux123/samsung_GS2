@@ -12,6 +12,7 @@ Makefile~
 *.cmd
 *.d
 *.order
+*.mod.c
 .version
 arch/arm/kernel/asm-offsets.s
 include/config/
