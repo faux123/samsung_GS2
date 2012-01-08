@@ -784,6 +784,7 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 
 	if (!hdmi_msm_state || !hdmi_msm_state->hpd_initialized || !HDMI_BASE) {
 		DEV_DBG("%s: ignored, probe failed\n", __func__);
+		state_work_completed = true;
 		return;
 	}
 #ifdef CONFIG_SUSPEND

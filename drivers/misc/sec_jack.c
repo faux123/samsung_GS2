@@ -105,7 +105,7 @@ static void set_send_key_state(struct sec_jack_info *hi, int state)
 #elif defined (CONFIG_KOR_MODEL_SHV_E110S) && defined (CONFIG_PMIC8058_XOADC_CAL)
 	if((adc >= 0 && adc < 145)) //celox-skt
 #elif defined (CONFIG_USA_MODEL_SGH_I727)
-	if((adc >= 0 && adc < 122)) //celox-att
+	if((adc >= 0 && adc < 150)) //celox-att
 #else	
 	if((adc >= 0 && adc < 111)) //0.12V (ADC 81)
 #endif
@@ -134,7 +134,7 @@ static void set_send_key_state(struct sec_jack_info *hi, int state)
 #elif defined (CONFIG_USA_MODEL_SGH_T989)
 		else if((adc >= 149 && adc <284))
 #elif defined (CONFIG_USA_MODEL_SGH_I727)
-		else if((adc >= 122 && adc < 310)) //celox-att
+		else if((adc >= 150 && adc < 336)) //celox-att
 #else
 		else if((adc >= 108 && adc < 301)) //0.161V~0.287V
 #endif
@@ -163,7 +163,7 @@ static void set_send_key_state(struct sec_jack_info *hi, int state)
 #elif defined (CONFIG_USA_MODEL_SGH_T989)
 		else if((adc >= 284 && adc < 681)) //0.334V~0.588V
 #elif defined (CONFIG_USA_MODEL_SGH_I727)
-		else if((adc >= 310 && adc < 681)) //celox-att
+		else if((adc >= 336 && adc < 681)) //celox-att
 #else
 		else if((adc >= 301 && adc < 660)) //0.334V~0.588V
 #endif

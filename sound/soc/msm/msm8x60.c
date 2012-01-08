@@ -384,7 +384,7 @@ static int msm_device_put(struct snd_kcontrol *kcontrol,
 			pr_info("Device trying to open : %s\n", dev_info->name);
 			rc = dev_info->dev_ops.open(dev_info);
 			if (rc < 0) {
-/*[[Safeguard code for device open issue -START //balaji.k	
+/*[[Safeguard code for device open issue -START 
      This fix would work incase of EBUSY error when device is being opened & previous instance of device is not closed */
 				if(rc == -EBUSY)
 				{
@@ -475,7 +475,7 @@ static int msm_device_put(struct snd_kcontrol *kcontrol,
 			
 			printk("Last active Open Txdev (%d) and Rxdev(%d)\n", last_active_tx_opened_dev,  last_active_rx_opened_dev);
 		}
-//Safeguard code for device open issue -END]] //balaji.k		
+//Safeguard code for device open issue -END]] 		
 			if(opened_dev1 == -1)
 				opened_dev1 = route_cfg.dev_id;
 			else
@@ -527,7 +527,7 @@ static int msm_device_put(struct snd_kcontrol *kcontrol,
 			broadcast_event(AUDDEV_EVT_REL_PENDING,
 						route_cfg.dev_id,
 						SESSION_IGNORE);
-			printk("Kuldeep: Device trying to close : %s\n", dev_info->name);			
+			printk("Device trying to close : %s\n", dev_info->name);			
 			rc = dev_info->dev_ops.close(dev_info);
 			if (rc < 0) {
 				pr_err("%s:Snd device failed close!\n",

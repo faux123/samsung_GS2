@@ -799,6 +799,8 @@ void sec_debug_task_sched_log(int cpu, struct task_struct *task)
 		strcpy(sec_debug_nocache_log->gExcpTaskLog[cpu][i].comm, task->comm);
 		sec_debug_nocache_log->gExcpTaskLog[cpu][i].pid = task->pid;
 	}
+/*  not to log when DEBUG_LEVEL_LOW */
+/*
 	else
 	{
 		i = atomic_inc_return(&gExcpTaskLogIdx[cpu]) & (SCHED_LOG_MAX - 1);
@@ -806,6 +808,7 @@ void sec_debug_task_sched_log(int cpu, struct task_struct *task)
 		strcpy(gExcpTaskLog[cpu][i].comm, task->comm);
 		gExcpTaskLog[cpu][i].pid = task->pid;
 	}
+*/
 }
 
 void sec_debug_timer_log(unsigned int type, int int_lock, void *fn)
@@ -821,6 +824,8 @@ void sec_debug_timer_log(unsigned int type, int int_lock, void *fn)
 		sec_debug_nocache_log->gExcpTimerLog[cpu][i].int_lock = int_lock;
 		sec_debug_nocache_log->gExcpTimerLog[cpu][i].fn = (void *)fn;
 	}
+/*  not to log when DEBUG_LEVEL_LOW */
+/*
 	else
 	{
 		i = atomic_inc_return(&gExcpTimerLogIdx[cpu]) & (SCHED_LOG_MAX - 1);
@@ -829,6 +834,7 @@ void sec_debug_timer_log(unsigned int type, int int_lock, void *fn)
 		gExcpTimerLog[cpu][i].int_lock = int_lock;
 		gExcpTimerLog[cpu][i].fn = (void *)fn;
 	}
+*/
 }
 
 void sec_debug_irq_sched_log(unsigned int irq, void *fn, int en)
@@ -844,6 +850,8 @@ void sec_debug_irq_sched_log(unsigned int irq, void *fn, int en)
 		sec_debug_nocache_log->gExcpIrqLog[cpu][i].fn = (void *)fn;
 		sec_debug_nocache_log->gExcpIrqLog[cpu][i].en = en;
 	}
+/*  not to log when DEBUG_LEVEL_LOW */
+/*
 	else
 	{
 		i = atomic_inc_return(&gExcpIrqLogIdx[cpu]) & (SCHED_LOG_MAX - 1);
@@ -852,6 +860,7 @@ void sec_debug_irq_sched_log(unsigned int irq, void *fn, int en)
 		gExcpIrqLog[cpu][i].fn = (void *)fn;
 		gExcpIrqLog[cpu][i].en = en;
 	}
+*/
 }
 
 void sec_debug_irq_sched_log_end(void)
@@ -864,11 +873,14 @@ void sec_debug_irq_sched_log_end(void)
 		i = atomic_inc_return(&(sec_debug_nocache_log->gExcpIrqLogIdx[cpu])) & (SCHED_LOG_MAX - 1);
 		sec_debug_nocache_log->gExcpIrqLog[cpu][i].elapsed_time = cpu_clock(cpu) - sec_debug_nocache_log->gExcpIrqLog[cpu][i].time;
 	}
+/*  not to log when DEBUG_LEVEL_LOW */
+/*
 	else
 	{
 		i = atomic_read(&gExcpIrqLogIdx[cpu]) & (SCHED_LOG_MAX - 1);
 		gExcpIrqLog[cpu][i].elapsed_time = cpu_clock(cpu) -gExcpIrqLog[cpu][i].time;
 	}
+*/
 }
 
 #ifdef CONFIG_SEC_DEBUG_IRQ_EXIT_LOG
@@ -885,6 +897,8 @@ void sec_debug_irq_enterexit_log(unsigned int irq, unsigned long long start_time
 		sec_debug_nocache_log->gExcpIrqEnterExitLog[cpu][i].irq = irq;
 		sec_debug_nocache_log->gExcpIrqEnterExitLog[cpu][i].elapsed_time = sec_debug_nocache_log->gExcpIrqEnterExitLog[cpu][i].end_time -start_time;
 	}
+/*  not to log when DEBUG_LEVEL_LOW */
+/*
 	else
 	{
 		i = atomic_inc_return(&gExcpIrqEnterExitLogIdx[cpu]) & (SCHED_LOG_MAX - 1);
@@ -893,6 +907,7 @@ void sec_debug_irq_enterexit_log(unsigned int irq, unsigned long long start_time
 		gExcpIrqEnterExitLog[cpu][i].irq = irq;
 		gExcpIrqEnterExitLog[cpu][i].elapsed_time = gExcpIrqEnterExitLog[cpu][i].end_time -start_time;
 	}
+*/
 }
 #endif
 #endif /* CONFIG_SEC_DEBUG_SCHED_LOG */
@@ -1130,6 +1145,8 @@ void sec_debug_dcvs_log(int cpu_no, unsigned int prev_freq, unsigned int new_fre
 		sec_debug_nocache_log->gExcpDcvsLog[i].new_freq = new_freq;
 		sec_debug_nocache_log->gExcpDcvsLog[i].time = cpu_clock(cpu_no);
 	}
+/*  not to log when DEBUG_LEVEL_LOW */
+/*
 	else
 	{
 		i = atomic_inc_return(&gExcpDcvsLogIdx) & (DCVS_LOG_MAX - 1);
@@ -1138,6 +1155,7 @@ void sec_debug_dcvs_log(int cpu_no, unsigned int prev_freq, unsigned int new_fre
 		gExcpDcvsLog[i].new_freq = new_freq;
 		gExcpDcvsLog[i].time = cpu_clock(cpu_no);
 	}
+*/
 }
 #endif
 
@@ -1155,6 +1173,8 @@ void sec_debug_fuelgauge_log(unsigned int voltage, unsigned short soc, unsigned 
 		sec_debug_nocache_log->gExcpFGLog[i].soc = soc;
 		sec_debug_nocache_log->gExcpFGLog[i].charging_status = charging_status;
 	}
+/*  not to log when DEBUG_LEVEL_LOW */
+/*
 	else
 	{
 		i = atomic_inc_return(&gExcpFGLogIdx) & (FG_LOG_MAX - 1);
@@ -1163,6 +1183,8 @@ void sec_debug_fuelgauge_log(unsigned int voltage, unsigned short soc, unsigned 
 		gExcpFGLog[i].soc = soc;
 		gExcpFGLog[i].charging_status = charging_status;
 	}
+
+*/
 }
 #endif
 
@@ -1185,6 +1207,8 @@ void sec_debug_mdp_log(unsigned int value1, unsigned int value2)
 		sec_debug_nocache_log->gExcpMDPLog[i].value1 = value1;
 		sec_debug_nocache_log->gExcpMDPLog[i].value2 = value2;
 	}
+/*  not to log when DEBUG_LEVEL_LOW */
+/*
 	else
 	{
 		i = atomic_inc_return(&gExcpMDPLogIdx) & (MDP_LOG_MAX - 1);
@@ -1192,6 +1216,7 @@ void sec_debug_mdp_log(unsigned int value1, unsigned int value2)
 		gExcpMDPLog[i].value1 = value1;
 		gExcpMDPLog[i].value2 = value2;
 	}
+*/
 }
 
 void sec_debug_mdp_enable(int enable)
@@ -1220,6 +1245,8 @@ void sec_debug_sdio_log(unsigned int value1, unsigned int value2)
 		sec_debug_nocache_log->gExcpSDIOLog[i].value1 = value1;
 		sec_debug_nocache_log->gExcpSDIOLog[i].value2 = value2;
 	}
+/*  not to log when DEBUG_LEVEL_LOW */
+/*
 	else
 	{
 		i = atomic_inc_return(&gExcpSDIOLogIdx) & (SDIO_LOG_MAX - 1);
@@ -1227,6 +1254,7 @@ void sec_debug_sdio_log(unsigned int value1, unsigned int value2)
 		gExcpSDIOLog[i].value1 = value1;
 		gExcpSDIOLog[i].value2 = value2;
 	}
+*/
 }
 
 void sec_debug_sdio_enable(int enable)

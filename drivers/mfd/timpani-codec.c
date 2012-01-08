@@ -2766,54 +2766,81 @@ static bool timpani_register_is_cacheable(u8 reg)
 	}
 }
 
-#if defined(CONFIG_USA_MODEL_SGH_I727)
-// Print the Message . Then do a Delay to see if the hardware get fixed by itself
-static int debug_codec_FirstFix( u8 reg , u8 mask , u8 val )
+static void timpani_codec_bring_up_nocache(void)
 {
-	int rc;
-	
-	printk (KERN_ERR "SUJEEV: We going to wa t before re trying \n");
-
-	mdelay(100); //Wait about 100ms
-
-	rc = marimba_write_bit_mask( adie_codec.pdrv_ptr, reg, &val,
-				     1, mask);
-	if (IS_ERR_VALUE(rc)) {
-		pr_err("%s : fail to write reg %x \n" ,__func__, reg);
-		return -EIO;
-	}
-
-	printk(KERN_ERR "SUJEEV: After Reset Successful \n");
-	
-	return 0;
+		 u8 reg_val;
+		 /* Codec power up sequence */
+		 reg_val = 0x08;
+		 marimba_write_bit_mask(adie_codec.pdrv_ptr, 0xFF, &reg_val, 1, 0xFF);
+		 reg_val = 0x0A;
+		 marimba_write_bit_mask(adie_codec.pdrv_ptr, 0xFF, &reg_val, 1, 0xFF);
+		 reg_val = 0x0E;
+		 marimba_write_bit_mask(adie_codec.pdrv_ptr, 0xFF, &reg_val, 1, 0xFF);
+		 reg_val = 0x07;
+		 marimba_write_bit_mask(adie_codec.pdrv_ptr, 0xFF,	&reg_val, 1, 0xFF);
+		 reg_val = 0x17;
+		 marimba_write_bit_mask(adie_codec.pdrv_ptr, 0xFF,	&reg_val, 1, 0xFF);
+		 reg_val = 0xF2;
+		 marimba_write_bit_mask(adie_codec.pdrv_ptr, TIMPANI_A_MREF,  &reg_val, 1, 0xFF);
+		 msleep(15);
+		 reg_val = 0x22;
+		 marimba_write_bit_mask(adie_codec.pdrv_ptr, TIMPANI_A_MREF,  &reg_val, 1, 0xFF);
+		 reg_val = TIMPANI_CDC_BYPASS_CTL2_POR;
+		 marimba_write_bit_mask(adie_codec.pdrv_ptr, TIMPANI_A_CDC_BYPASS_CTL2,  &reg_val, 1, TIMPANI_CDC_BYPASS_CTL2_M);
+		 reg_val = TIMPANI_CDC_BYPASS_CTL3_POR;
+		 marimba_write_bit_mask(adie_codec.pdrv_ptr, TIMPANI_A_CDC_BYPASS_CTL3,  &reg_val, 1,  TIMPANI_CDC_BYPASS_CTL3_M);
 }
 
-int debug_PerformReset( void );
-
-// Print the Message .and see if hardware reset will release the I2C line
-static int debug_codec_SecondFix( u8 reg , u8 mask , u8 val )
+static int timpani_flush_cached_values(void)
 {
-	int rc;
-	
-	printk (KERN_ERR "SUJEEV: We going to wa t before re trying \n");
+        int i, rc;
+        u8 reg_val;
 
-	mdelay(100); //Wait about 100ms
+        /* No compander supported so always bypass abiter otherwise analog gain does not get updated
+         * when flushing down analog gain
+         */
+        reg_val = 0x1;
+        marimba_write_bit_mask(adie_codec.pdrv_ptr, TIMPANI_A_CDC_ARB_BYPASS_CTL, 
+										&reg_val,1, 0xFF);
 
-	if(debug_PerformReset()){
-		printk(KERN_ERR "SUJEEV: Error resetting the device\n");
-		return -EIO;
-	}
-		
-	rc = marimba_write_bit_mask( adie_codec.pdrv_ptr, reg, &val,
-				     1, mask);
-	if (IS_ERR_VALUE(rc)) {
-		pr_err("%s : fail to write reg %x \n" ,__func__, reg);
-		return -EIO;
-	}
-	printk(KERN_ERR "SUJEEV: After Reset Successful \n");
-	
-}
-#endif
+        for (i = 0; i < TIMPANI_ARRAY_SIZE; i++) {
+                switch(i) {
+                        case 0xFF:
+                        case TIMPANI_A_MREF:
+                        case TIMPANI_A_CDC_BYPASS_CTL2:
+                                /* Already written in bring_up function */
+                                break;
+                        default:
+                                if (timpani_register_is_cacheable(i) == true) {
+                                        rc = marimba_write_bit_mask(adie_codec.pdrv_ptr, i, &timpani_shadow[i],
+                                        1, 0xFF);
+                                        if (IS_ERR_VALUE(rc))
+                                                return rc;
+                                }
+                                break;
+                }
+        }
+
+        reg_val = 0xCC; /* Update digital gain */
+        marimba_write_bit_mask(adie_codec.pdrv_ptr, TIMPANI_A_CDC_GCTL1, &reg_val,
+                1, 0xFF);
+        /* Expect CODEC sidetone not being used */
+        /* marimba_write_bit_mask(adie_codec.pdrv_ptr, TIMPANI_A_CDC_ST_CTL, &reg_val,
+           1, 0xFF); */
+        reg_val = 0xCC;
+        marimba_write_bit_mask(adie_codec.pdrv_ptr, TIMPANI_A_CDC_GCTL2, &reg_val,
+                1, 0xFF);
+ 
+		 reg_val = 0xCC;
+		 marimba_write_bit_mask(adie_codec.pdrv_ptr, TIMPANI_A_CDC_GCTL2, &reg_val,
+				 1, 0xFF);
+		 reg_val = 0xFF; /* blindly enable all channels hope it would be alright */
+		 marimba_write_bit_mask(adie_codec.pdrv_ptr, TIMPANI_A_CDC_CH_CTL, &timpani_shadow[TIMPANI_A_CDC_CH_CTL],
+				 1, 0xFF);
+ 
+		 return 0;
+ }
+
 
 static int adie_codec_write(u8 reg, u8 mask, u8 val)
 {
@@ -2830,10 +2857,31 @@ static int adie_codec_write(u8 reg, u8 mask, u8 val)
 				&new_val, 1, 0xFF);
 
 		if ((rc == -ETIMEDOUT) || (rc == -ENOTCONN)) {
-			pr_info("%s: Timpani write error, retrying\n",
+			pr_err("%s: Timpani write error, retrying\n",
 					__func__);
 			rc = marimba_write_bit_mask(adie_codec.pdrv_ptr,
 					reg, &val, 1, mask);
+		}
+		/* QTR patch for SR 620229 , QTR I2C NACK
+		 * I2c driver returns ENOTCONN error code under NAK condition.CODEC driver, 
+		 *  upon receiving two ENOTCONN error while attempting toprogram CODEC registers,
+		 *  performs reset on the CODEC. Then, driverflushes down cached register values 
+		 *  to restore state of CODEC.Since CODEC is yanked out,
+		 * undesirable pop noise is to be expected.*/
+		if (rc == -ENOTCONN) {
+				pr_err("%s: Timpani failed to respond twice. Reset\n",__func__);
+				timpani_reset();
+				/* Run CODEC software startup sequence again */
+				timpani_codec_bring_up_nocache();
+				/* Flush down cached value */
+				rc = timpani_flush_cached_values();
+				if (IS_ERR_VALUE(rc)) {
+						pr_err("%s: CODEC is not recoverable\n", __func__);
+						rc = -EIO;
+						goto error;
+				}
+				rc = marimba_write_bit_mask(adie_codec.pdrv_ptr, reg,  &new_val,
+								1, 0xFF);
 		}
 		//QC patch for case 00580204 , I2C QTR failure	
 		if (IS_ERR_VALUE(rc)) {

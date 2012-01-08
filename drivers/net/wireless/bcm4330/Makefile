@@ -91,6 +91,7 @@ EXTRA_CFLAGS += -DMOBILEAP_RELOAD
 ifeq ($(CONFIG_USA_OPERATOR_ATT),y)
 #Hidden SSID
 EXTRA_CFLAGS += -DUSE_HIDDEN_SSID
+EXTRA_CFLAGS += -DDISABLE_AMPDU
 endif
 
 ###############################################################################################

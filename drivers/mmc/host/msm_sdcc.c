@@ -118,10 +118,6 @@ static void
 msmsdcc_start_command(struct msmsdcc_host *host, struct mmc_command *cmd,
 		      u32 c);
 
-static inline void sam_msmsdcc_delay(struct msmsdcc_host *host);
-static inline void msmsdcc_delay(struct msmsdcc_host *host);
-
-
 static void msmsdcc_reset_and_restore(struct msmsdcc_host *host)
 {
 	if (host->plat->sdcc_v4_sup) {
@@ -158,7 +154,7 @@ static void msmsdcc_reset_and_restore(struct msmsdcc_host *host)
 		pr_debug("%s: Controller has been reinitialized\n",
 				mmc_hostname(host->mmc));
 
-		msmsdcc_delay(host);
+		dsb();
 		/* Restore the contoller state */
 		writel_relaxed(host->pwr, host->base + MMCIPOWER);
 		writel_relaxed(mci_clk, host->base + MMCICLOCK);
@@ -202,6 +198,9 @@ msmsdcc_request_end(struct msmsdcc_host *host, struct mmc_request *mrq)
 	return retval;
 }
 
+static inline void msmsdcc_delay(struct msmsdcc_host *host);
+static inline void msmsdcc_delay_samsung(struct msmsdcc_host *host);
+
 static void
 msmsdcc_stop_data(struct msmsdcc_host *host)
 {
@@ -219,26 +218,30 @@ static inline uint32_t msmsdcc_fifo_addr(struct msmsdcc_host *host)
 static inline void msmsdcc_delay(struct msmsdcc_host *host)
 {
 	dsb();
-/*
+
 	udelay(1 + ((3 * USEC_PER_SEC) /
 		(host->clk_rate ? host->clk_rate : host->plat->msmsdcc_fmin)));
-*/
-	if(host->clk_rate)
+	
+	/* In case if clk_rate <400Khz above code has allready made 8 milli second delay
+	In addition we are making an extra 1 milli second delay to be sure in slow clock domain
+	controller register bits update takes place properly	 */
+
+	if (host->clk_rate <= 400000) // Doesn't metter ZERO or 400KHz this condition does the same work
 		udelay(1);
-	else
-		udelay(8);
-}
-static inline void sam_msmsdcc_delay(struct msmsdcc_host *host)
-{
-	dsb();
-	udelay(1 + ((3 * USEC_PER_SEC) /
-		(host->clk_rate ? host->clk_rate : host->plat->msmsdcc_fmin)));
-/*	if(host->clk_rate)
-		udelay(1);
-	else
-		udelay(8); */
 }
 
+static inline void msmsdcc_delay_samsung(struct msmsdcc_host *host)
+{
+	dsb();
+	
+	/* An additional function has been added specifically to handle Hercules black screen
+	   case. This will ensure that there is no impact to normal data traffic and it
+	   takes care of ONLY the black screen case where we are assuming that because
+	   of no delay between writes or write and read... we are getting SDCC Lockup.
+	 */
+	if (host->clk_rate <= 400000) // Doesn't metter ZERO or 400KHz this condition does the same work
+		udelay(9);
+}
 
 static inline void
 msmsdcc_start_command_exec(struct msmsdcc_host *host, u32 arg, u32 c)
@@ -924,8 +927,6 @@ msmsdcc_irq(int irq, void *dev_id)
 	u32			status;
 	int			ret = 0;
 	int			timer = 0;
-	u32			loop_cnt = 0;
-	
 	spin_lock(&host->lock);
 
 	do {
@@ -949,14 +950,15 @@ msmsdcc_irq(int irq, void *dev_id)
 				wake_lock(&host->sdio_wlock);
 			/* only ansyc interrupt can come when clocks are off */
 			writel_relaxed(MCI_SDIOINTMASK, host->base + MMCICLEAR);
-			
-			sam_msmsdcc_delay(host);
+			/* In case of async interrupt we need to add delay as there is subsequent write may happen
+			 @ Line no 969  We need to preserve controller in good state*/
+			msmsdcc_delay_samsung(host);
 		}
 
 		status = readl_relaxed(host->base + MMCISTATUS);
+		status = (readl_relaxed(host->base + MMCIMASK0) & status) & ~(MCI_IRQ_PIO);
 
-		if (((readl_relaxed(host->base + MMCIMASK0) & status) &
-						(~(MCI_IRQ_PIO))) == 0)
+		if (status == 0)
 			break;
 
 #if IRQ_DEBUG
@@ -964,17 +966,7 @@ msmsdcc_irq(int irq, void *dev_id)
 #endif
 		status &= readl_relaxed(host->base + MMCIMASK0);
 		writel_relaxed(status, host->base + MMCICLEAR);
-
-		sam_msmsdcc_delay(host);
-	
-	loop_cnt = 0;
-	
-	while ((readl_relaxed(host->base + MMCISTATUS)
-				& status)
-				&& (++loop_cnt < 3)) {
-			sam_msmsdcc_delay(host);
-		}
-
+		msmsdcc_delay_samsung(host);
 #if IRQ_DEBUG
 		msmsdcc_print_status(host, "irq0-p", status);
 #endif

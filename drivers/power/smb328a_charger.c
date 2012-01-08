@@ -83,6 +83,11 @@ enum {
 	CHG_MODE_UNKNOWN
 };
 
+enum {
+	OTG_DISABLE,
+	OTG_ENABLE
+};
+
 struct smb328a_chip {
 	struct i2c_client		*client;
 	struct delayed_work		work;
@@ -98,6 +103,7 @@ struct smb328a_chip {
 	unsigned int float_voltage; /* float voltage */
 	int aicl_current;
 	int aicl_status;
+	int otg_check;
 };
 
 extern unsigned int get_hw_rev(void);
@@ -349,8 +355,8 @@ static void smb328a_charger_function_conrol(struct i2c_client *client)
 		data = (u8)val;
 		dev_info(&client->dev, "%s : reg (0x%x) = 0x%x\n",
 			__func__, reg, data);
-		if (data != 0x4d) {
-			data = 0x4d;
+		if (data != 0x4f) {
+			data = 0x4f;
 			if (smb328a_write_reg(client, reg, data) < 0)
 				pr_err("%s : error!\n", __func__);
 			val = smb328a_read_reg(client, reg);
@@ -1074,9 +1080,9 @@ static int smb328a_enable_otg(struct i2c_client *client)
 {
 	int val, reg;
 	u8 data;
-
+	struct smb328a_chip *chip = i2c_get_clientdata(client);
 	dev_info(&client->dev, "%s : \n", __func__);
-	
+
 	reg = SMB328A_COMMAND;
 	val = smb328a_read_reg(client, reg);
 	if (val >= 0) {
@@ -1090,11 +1096,11 @@ static int smb328a_enable_otg(struct i2c_client *client)
 				pr_err("%s : error!\n", __func__);
 				return -1;
 			}
-		
 			data = smb328a_read_reg(client, reg);
 			dev_info(&client->dev, "%s : => reg (0x%x) = 0x%x\n",
 				__func__, reg, data);
 		}
+		chip->otg_check=OTG_ENABLE;
 	}
 	return 0;
 }
@@ -1103,6 +1109,7 @@ static int smb328a_disable_otg(struct i2c_client *client)
 {
 	int val, reg;
 	u8 data;
+	struct smb328a_chip *chip = i2c_get_clientdata(client);
 
 	dev_info(&client->dev, "%s : \n", __func__);
 
@@ -1120,7 +1127,7 @@ static int smb328a_disable_otg(struct i2c_client *client)
 		data = smb328a_read_reg(client, reg);
 		dev_info(&client->dev, "%s : => reg (0x%x) = 0x%x\n",
 			__func__, reg, data);
-						
+
 	}
 
 	reg = SMB328A_COMMAND;
@@ -1133,11 +1140,12 @@ static int smb328a_disable_otg(struct i2c_client *client)
 		if (smb328a_write_reg(client, reg, data) < 0) {
 			pr_err("%s : error!\n", __func__);
 			return -1;
-		}		
+		}
 		data = smb328a_read_reg(client, reg);
 		dev_info(&client->dev, "%s : => reg (0x%x) = 0x%x\n",
 			__func__, reg, data);
 		fsa9480_otg_detach();
+		chip->otg_check=OTG_DISABLE;
 	}
 	return 0;
 }
@@ -1704,6 +1712,15 @@ static int smb328a_resume(struct i2c_client *client)
 #define smb328a_resume NULL
 #endif /* CONFIG_PM */
 
+static int smb328a_shutdown(struct i2c_client *client)
+{
+	struct smb328a_chip *chip = i2c_get_clientdata(client);
+
+	if (chip->otg_check == OTG_ENABLE)
+		smb328a_disable_otg(chip->client);
+	return 0;
+}
+
 static const struct i2c_device_id smb328a_id[] = {
 	{ "smb328a", 0 },
 	{ }
@@ -1718,6 +1735,7 @@ static struct i2c_driver smb328a_i2c_driver = {
 	.remove		= __devexit_p(smb328a_remove),
 	.suspend	= smb328a_suspend,
 	.resume		= smb328a_resume,
+	.shutdown = smb328a_shutdown,
 	.id_table	= smb328a_id,
 };
 

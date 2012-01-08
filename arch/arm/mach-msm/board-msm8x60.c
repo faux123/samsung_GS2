@@ -6170,8 +6170,10 @@ static struct sec_jack_zone jack_zones[] = {
         [1] = {
 #if defined (CONFIG_USA_MODEL_SGH_T989)
                 .adc_high       = 988,
+#elif defined(CONFIG_USA_MODEL_SGH_I727)
+                .adc_high       = 973,
 #else
-                .adc_high       = 980,     //960
+                .adc_high       = 980,
 #endif
                 .delay_ms       = 10,
                 .check_count    = 10,
@@ -12262,7 +12264,7 @@ static struct regulator *vreg_timpani_2;
 static unsigned int msm_timpani_setup_power(void)
 {
 	int rc;
-    printk("msm_timpani_setup_power\n");
+   	printk("msm_timpani_setup_power\n");
 	vreg_timpani_1 = regulator_get(NULL, "8058_l0");
 	if (IS_ERR(vreg_timpani_1)) {
 		pr_err("%s: Unable to get 8058_l0\n", __func__);
@@ -12322,7 +12324,7 @@ static unsigned int msm_timpani_setup_power(void)
 		gpio_direction_output(GPIO_CDC_RST_N, 0);
 		usleep_range(1000, 1050);
 		gpio_direction_output(GPIO_CDC_RST_N, 1);
-		gpio_free(GPIO_CDC_RST_N);
+		usleep_range(1000, 1050);
 	}
 	return rc;
 
@@ -12336,7 +12338,8 @@ static void msm_timpani_shutdown_power(void)
 {
 	int rc;
 
-    printk("msm_timpani_shutdown_power\n");
+	gpio_free(GPIO_CDC_RST_N);
+    	printk("msm_timpani_shutdown_power\n");
 
 	rc = regulator_disable(vreg_timpani_1);
 	if (rc)
@@ -12349,6 +12352,50 @@ static void msm_timpani_shutdown_power(void)
 		pr_err("%s: Disable regulator 8058_s3 failed\n", __func__);
 
 	regulator_put(vreg_timpani_2);
+}
+
+ /* QTR patch for SR 620229 , QTR I2C NACK
+  * Timpani reset to get the top level core out of reset.
+  * Clients invoke the api after multiple i2c errors to reset 
+  * the core and start the initialization.*/
+static unsigned int msm_timpani_reset(void)
+{
+	 int rc;
+	 rc = regulator_is_enabled(vreg_timpani_1);
+	 if (rc <= 0) {
+		rc = regulator_set_voltage(vreg_timpani_1, 1200000, 1200000);
+	if (rc) {
+			pr_err("%s: unable to set L0 voltage to 1.2V\n",__func__);
+			return rc;
+		}
+	rc = regulator_enable(vreg_timpani_1);
+	if (rc) {
+			pr_err("%s: Enable regulator 8058_l0 failed\n",__func__);
+			return rc;
+		}
+	}
+	rc = regulator_is_enabled(vreg_timpani_2);
+	if (rc <= 0) {
+		rc = regulator_set_voltage(vreg_timpani_2, 1800000, 1800000);
+		if (rc) {
+			pr_err("%s: unable to set s3 voltage to 1.8V\n",__func__);
+			goto fail;
+		}
+		rc = regulator_enable(vreg_timpani_2);
+		if (rc) {
+			pr_err("%s: Enable regulator 8058_s3 failed\n",__func__);
+			goto fail;
+			}
+		}
+	gpio_direction_output(GPIO_CDC_RST_N, 0);
+	usleep_range(1000, 1050);
+	gpio_direction_output(GPIO_CDC_RST_N, 1);
+	usleep_range(1000, 1050);
+	printk("%s Exit with success %d \n",__func__,rc);
+	return 0;
+	fail:
+	pr_err("%s Exit with failure %d \n",__func__,rc);
+		return rc;
 }
 
 /* Power analog function of codec */
@@ -12430,6 +12477,7 @@ static struct marimba_platform_data timpani_pdata = {
 	.slave_id[MARIMBA_SLAVE_ID_QMEMBIST] = TIMPANI_SLAVE_ID_QMEMBIST_ADDR,
 	.marimba_setup = msm_timpani_setup_power,
 	.marimba_shutdown = msm_timpani_shutdown_power,
+	.timpani_reset_config = msm_timpani_reset,
 	.codec = &timpani_codec_pdata,
 };
 

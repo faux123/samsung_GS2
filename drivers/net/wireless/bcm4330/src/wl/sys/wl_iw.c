@@ -6851,6 +6851,9 @@ set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 		dev_wlc_intvar_set(dev, "wme", 0);
 		dev_wlc_intvar_set(dev, "arpoe", 0);
 		dev_wlc_intvar_set(dev, "vlan_mode", 0);
+#ifdef DISABLE_AMPDU		
+		dev_wlc_intvar_set(dev, "ampdu", 0);
+#endif		
 
 		updown = 1;
 		if ((res = dev_wlc_ioctl(dev, WLC_UP, &updown, sizeof(updown))) < 0) {

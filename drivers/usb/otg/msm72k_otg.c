@@ -44,6 +44,11 @@ static void otg_reset(struct otg_transceiver *xceiv, int phy_reset);
 static void msm_otg_set_vbus_state(int online);
 static void msm_otg_set_id_state(int online);
 
+#ifdef CONFIG_USB_HOST_NOTIFY
+static void msm_otg_set_id_state_testmode(int id);
+#endif
+
+
 struct msm_otg *the_msm_otg;
 
 static int is_host(void)
@@ -572,6 +577,15 @@ static void msm_otg_start_peripheral(struct otg_transceiver *xceiv, int on)
 	struct msm_otg *dev = container_of(xceiv, struct msm_otg, otg);
 	struct msm_otg_platform_data *pdata = dev->pdata;
 
+
+#ifdef CONFIG_USB_HOST_NOTIFY
+	pr_info("[OTG] %s, on = %d\n", __func__, on);
+	if (on == 1)
+		the_msm_otg->ndev.mode = NOTIFY_PERIPHERAL_MODE;
+	else if (on == 0)
+		the_msm_otg->ndev.mode = NOTIFY_NONE_MODE;
+#endif
+
 	if (!xceiv->gadget)
 		return;
 
@@ -612,6 +626,20 @@ static void msm_otg_start_host(struct otg_transceiver *xceiv, int on)
 {
 	struct msm_otg *dev = container_of(xceiv, struct msm_otg, otg);
 	struct msm_otg_platform_data *pdata = dev->pdata;
+
+#ifdef CONFIG_USB_HOST_NOTIFY
+	pr_info("[OTG] %s, on = %d\n", __func__, on);
+	if (on == 1) {
+		the_msm_otg->ndev.mode = NOTIFY_HOST_MODE;
+		host_state_notify(&the_msm_otg->ndev, NOTIFY_HOST_ADD);
+		wake_lock(&dev->wlock_host);
+	}
+	else if (on == 0) {
+		the_msm_otg->ndev.mode = NOTIFY_NONE_MODE;
+		host_state_notify(&the_msm_otg->ndev, NOTIFY_HOST_REMOVE);
+		wake_unlock(&dev->wlock_host);
+	}
+#endif
 
 	if (!xceiv->host)
 		return;
@@ -1144,6 +1172,32 @@ void msm_otg_set_vbus_state(int online)
 	queue_work(dev->wq, &dev->sm_work);
 }
 
+
+#ifdef CONFIG_USB_HOST_NOTIFY
+/* id =1 on, id = 0 off */
+void msm_otg_set_id_state_testmode(int id)
+{
+	struct msm_otg *dev = the_msm_otg;
+
+	pr_info("[OTG] %s %d, id=%d, !id=%d, dev->pmic_id_status=%d\n", __func__, __LINE__, id, !id, dev->pmic_id_status);
+	if (id == 1)
+		dev->pdata->otg_mode = OTG_USER_CONTROL;
+	else
+		dev->pdata->otg_mode = OTG_ID;
+
+	wake_lock(&dev->wlock);
+	if (!id) {
+		set_bit(ID, &dev->inputs);
+		dev->pmic_id_status = 1;
+	} else {
+		clear_bit(ID, &dev->inputs);
+		set_bit(A_BUS_REQ, &dev->inputs);
+		dev->pmic_id_status = 0;
+	}
+	queue_work(dev->wq, &dev->sm_work);
+}
+#endif
+
 static irqreturn_t msm_otg_irq(int irq, void *data)
 {
 	struct msm_otg *dev = data;
@@ -1160,9 +1214,12 @@ static irqreturn_t msm_otg_irq(int irq, void *data)
 		goto out;
 	}
 
+
+#ifndef CONFIG_USB_HOST_NOTIFY
 	/* Return immediately if instead of ID pin, USER controls mode switch */
 	if (dev->pdata->otg_mode == OTG_USER_CONTROL)
 		return IRQ_NONE;
+#endif
 
 
 	otgsc = __raw_readl(USB_OTGSC);
@@ -1215,8 +1272,27 @@ static irqreturn_t msm_otg_irq(int irq, void *data)
 		 * But, handle BSV when charger is removed from ACA in ID_A
 		 */
 		if ((state >= OTG_STATE_A_IDLE) &&
-			!test_bit(ID_A, &dev->inputs))
+			!test_bit(ID_A, &dev->inputs)) {
+
+#ifdef CONFIG_USB_HOST_NOTIFY
+			if (otgsc & OTGSC_BSV) {
+				the_msm_otg->ndev.booster = NOTIFY_POWER_ON;
+				dev_info(the_msm_otg->otg.dev, "Vbus power on detect\n");
+			}
+			else {
+				if (the_msm_otg->ndev.mode == NOTIFY_HOST_MODE) {
+					host_state_notify(&the_msm_otg->ndev, NOTIFY_HOST_OVERCURRENT);
+					dev_err(the_msm_otg->otg.dev, "OTG overcurrent!!!!!!\n");
+				}
+				else {
+					dev_info(the_msm_otg->otg.dev, "Vbus power off detect\n");
+				}
+				the_msm_otg->ndev.booster = NOTIFY_POWER_OFF;
+			}
+#endif
+
 			goto out;
+			}
 		if (otgsc & OTGSC_BSV) {
 			pr_info("BSV set\n");
 			set_bit(B_SESS_VLD, &dev->inputs);
@@ -2573,6 +2649,10 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 	spin_lock_init(&dev->lock);
 	wake_lock_init(&dev->wlock, WAKE_LOCK_SUSPEND, "msm_otg");
 
+#ifdef CONFIG_USB_HOST_NOTIFY
+	wake_lock_init(&dev->wlock_host, WAKE_LOCK_SUSPEND, "msm_otg_connection_kit");
+#endif
+
 	dev->wq = create_singlethread_workqueue("k_otg");
 	if (!dev->wq) {
 		ret = -ENOMEM;
@@ -2727,7 +2807,27 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 #endif
 
 
+#ifdef CONFIG_USB_HOST_NOTIFY
+#define NOTIFY_DRIVER_NAME "usb_otg"
+	the_msm_otg->ndev.name = NOTIFY_DRIVER_NAME;
+	the_msm_otg->ndev.set_booster = &msm_otg_set_id_state_testmode;
+
+	ret = host_notify_dev_register(&the_msm_otg->ndev);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to host_notify_dev_register\n");
+		goto err_irq;
+	}
+	else
+		dev_info(&pdev->dev, "success to host_notify_dev_register\n");
+#endif
+
 	return 0;
+
+
+#ifdef CONFIG_USB_HOST_NOTIFY
+err_irq:
+	otg_set_transceiver(NULL);
+#endif
 
 chg_deinit:
 	if (dev->pdata->chg_init)
@@ -2758,6 +2858,11 @@ free_wq:
 	destroy_workqueue(dev->wq);
 free_wlock:
 	wake_lock_destroy(&dev->wlock);
+
+#ifdef CONFIG_USB_HOST_NOTIFY
+	wake_lock_destroy(&dev->wlock_host);
+#endif
+
 free_xo_handle:
 	msm_xo_put(dev->xo_handle);
 free_regs:
@@ -2795,12 +2900,22 @@ static int __exit msm_otg_remove(struct platform_device *pdev)
 {
 	struct msm_otg *dev = the_msm_otg;
 
+
+#ifdef CONFIG_USB_HOST_NOTIFY
+	host_notify_dev_unregister(&the_msm_otg->ndev);
+#endif
+
 	otg_debugfs_cleanup();
 #ifdef CONFIG_USB_OTG
 	sysfs_remove_group(&pdev->dev.kobj, &msm_otg_attr_grp);
 #endif
 	destroy_workqueue(dev->wq);
 	wake_lock_destroy(&dev->wlock);
+
+#ifdef CONFIG_USB_HOST_NOTIFY
+	wake_lock_destroy(&dev->wlock_host);
+#endif
+
 
 	if (dev->pdata->setup_gpio)
 		dev->pdata->setup_gpio(USB_SWITCH_DISABLE);
