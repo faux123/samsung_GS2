@@ -782,6 +782,7 @@ config BOOT_PRINTK_DELAY
 config RCU_TORTURE_TEST
 	tristate "torture tests for RCU"
 	depends on DEBUG_KERNEL
+	depends on !JRCU
 	default n
 	help
 	  This option provides a kernel module that runs torture tests
