@@ -152,6 +152,7 @@ static void msm_power_off(void)
 #endif
 	pm8058_reset_pwr_off(0);
 	pm8901_reset_pwr_off(0);
+	mdelay(8); /*total 8ms delay before PS_HOLD is pulled low */ 
 	writel(0, PSHOLD_CTL_SU);
 	mdelay(10000);
 	printk(KERN_ERR "Powering off has failed\n");
