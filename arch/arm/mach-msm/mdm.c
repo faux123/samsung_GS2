@@ -59,7 +59,7 @@
 //#define CHARM_MODEM_TIMEOUT	6000
 //#define CHARM_HOLD_TIME		4000
 #define CHARM_MODEM_TIMEOUT	1500
-#define CHARM_HOLD_TIME		500
+#define CHARM_HOLD_TIME		4000
 #define CHARM_MODEM_DELTA		100
 
 static void (*power_on_charm)(void);
@@ -206,6 +206,8 @@ static long charm_modem_ioctl(struct file *filp, unsigned int cmd,
 		/* STATUS pin restore to PULL NONE config */
 		gpio_tlmm_config(GPIO_CFG(MDM2AP_STATUS, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),1);
 		
+        gpio_set_value(AP2MDM_KPDPWR_N, 0) ;
+
 		if (!first_boot)
 			complete(&charm_boot);
 		else
@@ -229,7 +231,7 @@ static long charm_modem_ioctl(struct file *filp, unsigned int cmd,
 			put_user(boot_type, (unsigned long __user *) arg);
 		INIT_COMPLETION(charm_needs_reload);
 		break;
-#if defined(CONFIG_KOR_MODEL_SHV_E120L)		
+#if defined(CONFIG_KOR_MODEL_SHV_E120L) || defined(CONFIG_TARGET_LOCALE_USA)
 	case RESET_CHARM:
 		CHARM_DBG("%s: reset charm start\n", __func__);
 		gpio_direction_output(AP2MDM_KPDPWR_N, 0);
@@ -550,16 +552,17 @@ static void charm_modem_shutdown(struct platform_device *pdev)
 
 	msleep(200); // Add delay for NFC Card Mode after power-off
 
-	if (i <= 0) {
-		pr_err("%s: MDM2AP_STATUS never went low.\n",
-			 __func__);
-		gpio_direction_output(AP2MDM_PMIC_RESET_N, 1);
-		for (i = CHARM_HOLD_TIME; i > 0; i -= CHARM_MODEM_DELTA) {
-			pet_watchdog();
-			msleep(CHARM_MODEM_DELTA);
-		}
-		gpio_direction_output(AP2MDM_PMIC_RESET_N, 0);
+
+	if (i <= 0) 
+		pr_err("%s: MDM2AP_STATUS never went low.\n", __func__);
+
+	/* Hard reset using RESIN_N  */        
+	gpio_direction_output(AP2MDM_PMIC_RESET_N, 1);
+	for (i = CHARM_HOLD_TIME; i > 0; i -= CHARM_MODEM_DELTA) {
+		pet_watchdog();
+		msleep(CHARM_MODEM_DELTA);
 	}
+	gpio_direction_output(AP2MDM_PMIC_RESET_N, 0);
 	gpio_set_value(AP2MDM_WAKEUP, 0);
 }
 
