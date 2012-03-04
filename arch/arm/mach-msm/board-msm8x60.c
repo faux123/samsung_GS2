@@ -8963,12 +8963,12 @@ static u8 t8_config_e[] = {GEN_ACQUISITIONCONFIG_T8,
 
 /* NEXTTCHDI added */
 static u8 t9_config_e[] = {TOUCH_MULTITOUCHSCREEN_T9,
-				131, 0, 0, 19, 11, 0, 32, MXT224E_THRESHOLD, 2, 1,
+				139, 0, 0, 19, 11, 0, 32, MXT224E_THRESHOLD, 2, 1,
 				10, 
 				15,		/* MOVHYSTI */
 				1, 46, MXT224_MAX_MT_FINGERS, 5, 40, 10, 31, 3,
 				223, 1, 10, 10, 10, 10, 143, 40, 143, 80,
-				18, 15, 50, 50, 0};
+				18, 15, 50, 50, 3};
 
 static u8 t15_config_e[] = {TOUCH_KEYARRAY_T15,	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 static u8 t18_config_e[] = {SPT_COMCONFIG_T18, 0, 0};
@@ -8976,13 +8976,18 @@ static u8 t23_config_e[] = {TOUCH_PROXIMITY_T23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 static u8 t25_config_e[] = {SPT_SELFTEST_T25, 0, 0, 0, 0, 0, 0, 0, 0};
 static u8 t40_config_e[] = {PROCI_GRIPSUPPRESSION_T40, 0, 0, 0, 0, 0};
 static u8 t42_config_e[] = {PROCI_TOUCHSUPPRESSION_T42, 0, 0, 0, 0, 0, 0, 0, 0};
-static u8 t46_config_e[] = {SPT_CTECONFIG_T46, 0, 3, 24, 35,/* to improve typing speed 48->40 */ 0, 0, 1, 0, 0};
+//static u8 t46_config_e[] = {SPT_CTECONFIG_T46, 0, 3, 24, 35,/* to improve typing speed 48->40 */ 0, 0, 1, 0, 0};
+static u8 t46_config_e[] = {SPT_CTECONFIG_T46, 0, 3, 24, 32,0, 0, 1, 0, 0};//110927 gumi noise
 static u8 t47_config_e[] = {PROCI_STYLUS_T47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+//static u8 t38_config_e[] = {SPT_USERDATA_T38, 0, 1, 12, 19, 38, 0, 0, 0};//110927 gumi noise
+
+static u8 t38_config_e[] = {SPT_USERDATA_T38, 0,1,15,19,45,40,0,0};  // from yang
+
 
 static u8 t48_config_e_ta[] = {PROCG_NOISESUPPRESSION_T48,
     3, 132, 0x52, 0, 0, 0, 0, 0, 10, 15,
 				0, 0, 0, 6, 6, 0, 0, 64, 4, 64,
-				10, 0, 20, 5, 0, 38, 0, 20, 0, 0,
+				10, 0, 9, 5, 0, 15, 0, 20, 0, 0,//110927 gumi noise
 				0, 0, 0, 0, 0, 40, 2,/*blen=0,threshold=50*/
 				15,		/* MOVHYSTI */ 
 				1, 47,  // MoveFilter 46->47, for chargeing
@@ -8991,8 +8996,8 @@ static u8 t48_config_e_ta[] = {PROCG_NOISESUPPRESSION_T48,
 
 static u8 t48_config_e[] = {PROCG_NOISESUPPRESSION_T48,
     3, 132, 0x40, 0, 0, 0, 0, 0, 10, 15,
-    0, 0, 0, 6, 6, 0, 0, 64, 4, 64,
-				10, 0, 20, 5, 0, 38, 0, 5, 0, 0,  /*byte 27 original value 20*/
+    0, 0, 0, 6, 6, 0, 0, 48, 4, 48,
+				10, 0, 10, 5, 0, 20, 0, 5, 0, 0,  /*byte 27 original value 20*/
 				0, 0, 0, 0, 32, MXT224E_THRESHOLD, 2,
 				15,		
 				1, 46,
@@ -9014,6 +9019,7 @@ static const u8 *mxt224e_config[] = {
 	t46_config_e,
 	t47_config_e,
 	t48_config_e,
+	t38_config_e,//110927 gumi noise
 	end_config_e,
 };
 
