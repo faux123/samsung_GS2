@@ -13598,8 +13598,8 @@ static struct msm_sdcc_pad_drv_cfg sdc3_pad_on_drv_cfg[] = {
 };
 
 static struct msm_sdcc_pad_pull_cfg sdc3_pad_on_pull_cfg[] = {
-	{TLMM_PULL_SDC3_CMD, GPIO_CFG_PULL_UP},
-	{TLMM_PULL_SDC3_DATA, GPIO_CFG_PULL_UP}
+	{TLMM_PULL_SDC3_CMD, GPIO_CFG_NO_PULL},
+	{TLMM_PULL_SDC3_DATA, GPIO_CFG_NO_PULL}
 };
 
 static struct msm_sdcc_pad_drv_cfg sdc3_pad_off_drv_cfg[] = {
@@ -16761,7 +16761,14 @@ error1:
 #endif	
 }
 #endif
-
+#ifdef CONFIG_SEC_AUDIO_I2S_DRIVING_CURRENT
+static void codec_i2s_strength_init(void)
+{
+	msm_tlmm_set_spkr_hdrive(CODEC_SPKR_SCK_HDRV, GPIO_CFG_8MA);
+	msm_tlmm_set_spkr_hdrive(CODEC_SPKR_WS_HDRV, GPIO_CFG_8MA);
+	msm_tlmm_set_spkr_hdrive(CODEC_SPKR_DOUT_HDRV, GPIO_CFG_8MA);
+}
+#endif
 static uint32_t vibrator_device_gpio_config[] = {
 	GPIO_CFG(30, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
 	GPIO_CFG(31, 2, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
@@ -18786,6 +18793,9 @@ static void __init msm8x60_init(struct msm_board_data *board_data)
 	if (ret)
 		printk("Fail to create sec_debug_level file\n");
 #endif /*CONFIG_KERNEL_DEBUG_SEC*/
+#ifdef CONFIG_SEC_AUDIO_I2S_DRIVING_CURRENT
+	codec_i2s_strength_init();
+#endif
 }
 
 static void __init msm8x60_rumi3_init(void)

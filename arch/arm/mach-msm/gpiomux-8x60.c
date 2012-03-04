@@ -2992,6 +2992,25 @@ static int msm_gpio_read_proc(char *page,
 	return p - page;
 }
 
+void msm_gpio_sleep_log(unsigned int factory_on)
+{
+	struct gpiomux_setting set;
+	unsigned gpio;
+
+	if (likely(!factory_on))
+		return;
+
+	pr_info("[%s], gpio configure info\n", __func__);
+	for (gpio = 0; gpio < NR_GPIO_IRQS; ++gpio) {
+		msm_gpiomux_read(gpio, &set);
+		pr_info("[%s][gpio %u]\t%s\t%s\t%s\t%s\n", __func__, gpio,
+			gpiomux_func_str[set.func],
+			gpiomux_dir_str[set.dir],
+			gpiomux_pull_str[set.pull],
+			gpiomux_drv_str[set.drv]);
+	}
+}
+
 void __init msm8x60_init_gpiomux(struct msm_gpiomux_configs *cfgs)
 {
 	int rc;
