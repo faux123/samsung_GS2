@@ -601,12 +601,11 @@ int android_enable_function(struct usb_function *f, int enable)
 	product_id = get_product_id(dev);
 	device_desc.idProduct = __constant_cpu_to_le16(product_id);
 
-	if (dev->cdev)
+	if (dev->cdev){
 		dev->cdev->desc.idProduct = device_desc.idProduct;
-
-	/* force reenumeration */
-	usb_composite_force_reset(dev->cdev);
-	
+		/* force reenumeration */
+		usb_composite_force_reset(dev->cdev);
+	}
 	return 0;
 }
 
@@ -837,6 +836,11 @@ static void samsung_enable_function(int mode)
 		case USBSTATUS_VTP: /* do not save usb mode */
 			ret = set_product(dev, USBSTATUS_VTP);
 			break;
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_RNDIS_FOR_ATT_TEST_COMPOSITE
+		case USBSTATUS_VTP_TEST: /* do not save usb mode */
+			ret = set_product(dev, USBSTATUS_VTP_TEST);
+			break;
+#endif			
 #endif			
 		case USBSTATUS_RMNET: /* do not save usb mode */
 			ret = set_product(dev, USBSTATUS_RMNET);
@@ -849,18 +853,24 @@ static void samsung_enable_function(int mode)
 	if(ret == -1) {
 		return ;
 	}
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_RNDIS_FOR_ATT_TEST_COMPOSITE
+	else if((mode != USBSTATUS_VTP) && (mode != USBSTATUS_VTP_TEST) && (mode != USBSTATUS_ASKON)) {
+		dev->current_usb_mode = mode;
+	}
+#else
 	else if((mode != USBSTATUS_VTP) && (mode != USBSTATUS_ASKON)) {
 		dev->current_usb_mode = mode;
 	}
+#endif
 
 	product_id = get_product_id(dev);
 	device_desc.idProduct = __constant_cpu_to_le16(product_id);
 
-	if (dev->cdev)
+	if (dev->cdev){
 		dev->cdev->desc.idProduct = device_desc.idProduct;
-
-	/* force reenumeration */
-	usb_composite_force_reset(dev->cdev);
+		/* force reenumeration */
+		usb_composite_force_reset(dev->cdev);
+	}
 }
 #endif /* CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE */
 
@@ -876,6 +886,10 @@ static ssize_t tethering_switch_show(struct device *dev, struct device_attribute
 	if(a_dev->cdev) {
 		if (a_dev->requested_usb_mode == USBSTATUS_VTP )
 			value = 1;
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_RNDIS_FOR_ATT_TEST_COMPOSITE
+		else if (a_dev->requested_usb_mode == USBSTATUS_VTP_TEST)
+			value = 2;
+#endif
 		else
 			value = 0;
 	}
@@ -888,13 +902,27 @@ static ssize_t tethering_switch_store(struct device *dev, struct device_attribut
 	int value;
 	struct android_dev *a_dev = _android_dev;
 	sscanf(buf, "%d", &value);
+	printk("%s value %d %c",__func__,value, buf);
 
 	if (value) {
 		if(a_dev->cdev) {
 			if(a_dev->cdev->gadget->speed == USB_SPEED_UNKNOWN)
 				a_dev->cdev->mute_switch = 1;
 		}
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_RNDIS_FOR_ATT_TEST_COMPOSITE
+		switch(value) {
+			case 1:
+				samsung_enable_function(USBSTATUS_VTP);
+				break;
+			case 2:
+				samsung_enable_function(USBSTATUS_VTP_TEST);
+				break;
+			default:
+				break;
+		}
+#else
 		samsung_enable_function(USBSTATUS_VTP);
+#endif	
 		if(a_dev->cdev)
 			if(a_dev->cdev->gadget)
 				usb_gadget_vbus_connect(a_dev->cdev->gadget);
@@ -931,6 +959,10 @@ static ssize_t UsbMenuSel_switch_show(struct device *dev, struct device_attribut
 				return sprintf(buf, "[UsbMenuSel] TETHERING\n");
 			case USBSTATUS_ADB:
 				return sprintf(buf, "[UsbMenuSel] ACM_ADB_UMS\n");
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_RNDIS_FOR_ATT_TEST_COMPOSITE				
+			case USBSTATUS_VTP_TEST:
+				return sprintf(buf, "[UsbMenuSel] TETHERING_TEST\n");
+#endif
 			case USBSTATUS_RMNET:
 				return sprintf(buf, "[UsbMenuSel] RMNET\n");				
 		}

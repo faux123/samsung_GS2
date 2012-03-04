@@ -971,6 +971,12 @@ config USB_ANDROID_ACCESSORY
 	help
 	  Provides Android USB Accessory support for android gadget driver.
 
+config USB_ANDROID_SAMSUNG_RNDIS_FOR_ATT_TEST_COMPOSITE
+	boolean "support SAMSUNG_RNDIS_FOR_ATT_TEST_COMPOSITE"
+	depends on USB_ANDROID
+	help
+	  It is SAMSUNG_RNDIS_FOR_ATT_TEST_COMPOSITE driver(RNDIS+ACM).
+
 config USB_ANDROID_RMNET
 	boolean "RmNet function driver"
 	depends on USB_ANDROID

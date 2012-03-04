@@ -2335,6 +2335,11 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 	if (sdp->removable)
 		gd->flags |= GENHD_FL_REMOVABLE;
 
+#ifdef CONFIG_USB_HOST_NOTIFY
+	if (sdp->host->by_usb)
+		gd->interfaces = GENHD_IF_USB;
+	msleep(500);
+#endif
 	dev_set_drvdata(dev, sdkp);
 	add_disk(gd);
 	sd_dif_config_host(sdkp);

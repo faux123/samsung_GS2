@@ -200,6 +200,7 @@ extern bool SiI9234_init(void);
 static int gv_intr2=0;
 static int isDeskdockconnected=0;
 static int HWversion=0;
+
 void DisableFSA9480Interrupts(void)
 {
 	struct i2c_client *client = local_usbsw->client;
@@ -330,10 +331,12 @@ void mhl_onff_handler(struct work_struct *work) //Rajucm
 	{	//4Control enters into while loop only when fsa9480 detects MHL-cable @ phone bootup
 		//printk(KERN_ERR"[FSA9480]## mhl cable detected during boot ## \n");
 		//i2c_smbus_write_byte_data(client, 0x02, (0x01|i2c_smbus_read_byte_data(client, 0x02)));	//DisableFSA9480Interrupts
-		printk(KERN_ERR "[FSA9480]## %s ## \n", SII9234_i2c_status? "Ready to start MHL":"Let's Sleep untill MHL condition comes true");
-
-		wait_event_interruptible_timeout(fsa9480_MhlWaitEvent, SII9234_i2c_status, msecs_to_jiffies(5*1000)); //5sec:		
-		//skip controlling the sii9234 on lpm mode		
+		if(!sec_get_lpm_mode())
+		{
+			printk(KERN_ERR "[FSA9480]## %s ## \n", SII9234_i2c_status? "Ready to start MHL":"Let's Sleep untill MHL condition comes true");
+			wait_event_interruptible_timeout(fsa9480_MhlWaitEvent, SII9234_i2c_status, msecs_to_jiffies(5*1000)); //5sec:
+		}
+		//skip controlling the sii9234 on lpm mode
 		if(sec_get_lpm_mode())
 		{
 			//ignore turn on mhl because of only charging mode in power off state!
@@ -964,6 +967,27 @@ static void fsa9480_reg_init(struct fsa9480_usbsw *usbsw)
 	
 }
 
+// Add for fsa9485 device check (Samsung) [
+void fsa9480_check_device(void)
+{
+	struct i2c_client *client = local_usbsw->client;
+	int ret = 0;
+	
+	ret = i2c_smbus_read_byte_data(client,FSA9480_REG_CTRL);
+	if (ret < 0)
+		dev_err(&client->dev,"%s: err %d\n", __func__, ret);
+
+	if (ret==0x1F)
+	{
+		dev_info(&client->dev, " %s  ret : %x \n", __func__,ret);
+		ret = i2c_smbus_write_byte_data(client, FSA9480_REG_CTRL, 0x1E);
+		if (ret < 0)
+			dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+
+		i2c_smbus_read_word_data(client, FSA9480_REG_INT1); // clear interrupt
+	}
+}
+// ]
 
 static int fsa9480_check_dev(struct fsa9480_usbsw *usbsw)
 {
@@ -978,12 +1002,28 @@ static int fsa9480_check_dev(struct fsa9480_usbsw *usbsw)
 	return device_type;
 }
 
-// for fsa9485 is not responding during mhl switching [ 
+// for fsa9485 is not responding during mhl switching [
 static void fsa9480_mhl_check(struct work_struct *work)
 {
 	struct i2c_client *client = local_usbsw->client;
-	dev_info(&client->dev, " %s check_watchdog %d \n", __func__, local_usbsw->check_watchdog);
-	
+	unsigned char val=0;
+	int device_type=0;
+
+	dev_info(&client->dev, " %s  %d, Deskdockconnected %d \n", __func__, local_usbsw->check_watchdog,isDeskdockconnected);
+
+// We check again deskdock connection
+	if (isDeskdockconnected)
+	{
+		device_type=fsa9480_check_dev(local_usbsw);
+		val = device_type >> 8;
+		if (!(val & DEV_AV))
+		{
+			FSA9480_MhlSwitchSel(0);
+			fsa9480_reg_init(local_usbsw);
+		}
+	}
+
+// there is no respond from MHL driver.
 	if (local_usbsw->check_watchdog ==0)
 	{
 		FSA9480_MhlSwitchSel(0);
