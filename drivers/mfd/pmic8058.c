@@ -691,6 +691,61 @@ get_out:
 }
 EXPORT_SYMBOL(pm8058_reset_pwr_off);
 
+#if 1 /* TEST SBA - CN00733593*/ 
+#define SSBI_REG_ADDR_LVS0A_TEST 0x12E 
+int pm8058_lvs0_ocp_disable(void) 
+{ 
+int rc; 
+u8 test, smpl; 
+
+if (pmic_chip == NULL) 
+return -ENODEV; 
+
+/* Set LVS0 to OCP disabled. */ 
+rc = ssbi_read(pmic_chip->dev, SSBI_REG_ADDR_LVS0A_TEST, &test, 1); 
+if (rc) { 
+pr_err("%s: FAIL ssbi_read(0x%x): rc=%d\n", __func__, 
+SSBI_REG_ADDR_LVS0A_TEST, rc); 
+goto get_out; 
+} 
+test |= 0x10; 
+rc = ssbi_write(pmic_chip->dev, SSBI_REG_ADDR_LVS0A_TEST, &test, 1); 
+if (rc) 
+pr_err("%s: FAIL ssbi_write(0x%x)=0x%x: rc=%d\n", __func__, 
+SSBI_REG_ADDR_LVS0A_TEST, test, rc); 
+
+get_out: 
+return rc; 
+} 
+EXPORT_SYMBOL(pm8058_lvs0_ocp_disable); 
+
+int pm8058_lvs0_get_ocp(void) 
+{ 
+int rc; 
+u8 test, smpl; 
+
+if (pmic_chip == NULL) 
+return -3; 
+
+/* Set LVS0 to OCP disabled. */ 
+rc = ssbi_read(pmic_chip->dev, SSBI_REG_ADDR_LVS0A_TEST, &test, 1); 
+if (rc) { 
+pr_err("%s: FAIL ssbi_read(0x%x): rc=%d\n", __func__, 
+SSBI_REG_ADDR_LVS0A_TEST, rc); 
+return -2; 
+} 
+pr_err("%s: LVS0 status : 0x%x\n", __func__,test); 
+if (test & 0x80)
+{ 
+	pr_err("%s: LVS0 OCP was occurred!!\n", __func__); 
+	return -1;
+}
+
+return 0; 
+} 
+EXPORT_SYMBOL(pm8058_lvs0_get_ocp); 
+#endif 
+
 /**
  * pm8058_stay_on - enables stay_on feature
  *
@@ -1147,18 +1202,20 @@ bail_out:
 
 	mutex_unlock(&chip->pm_lock);
 
-	// fix ADC
-//	for (i = 0; i < handled; i++)
-//		handle_nested_irq(irqs_to_handle[i]);
-
 	for (i = 0; i < handled; i++) {
-		// fix ADC
-		handle_nested_irq(irqs_to_handle[i]);
-		irqs_to_handle[i] -= chip->pdata.irq_base;
-		block  = irqs_to_handle[i] / 8 ;
-		config = PM8058_IRQF_WRITE | chip->config[irqs_to_handle[i]]
+		
+	//	handle_nested_irq(irqs_to_handle[i]);
+	
+		int pmic_irq = irqs_to_handle[i] - chip->pdata.irq_base;
+
+		/* ack the interrupt first */
+		block = pmic_irq / 8;
+		config = PM8058_IRQF_WRITE | chip->config[pmic_irq]
 				| PM8058_IRQF_CLR;
 		pm8058_config_irq(chip, &block, &config);
+
+		/* call the action handler */
+		handle_nested_irq(irqs_to_handle[i]);
 	}
 
 	if (spurious) {
@@ -1466,6 +1523,10 @@ static int pm8058_probe(struct i2c_client *client,
 	if (rc < 0)
 		pr_err("%s: could not set up debugfs: %d\n", __func__, rc);
 
+	#if 1 /* TEST SBA - CN00733593*/ 
+	pm8058_lvs0_ocp_disable();
+	#endif
+	
 	return 0;
 }
 
