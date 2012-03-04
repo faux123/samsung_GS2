@@ -422,7 +422,7 @@ struct sec_bat_info {
 	unsigned int wadc_freezed_count;
 	bool is_adc_wq_freezed;
 #endif
-	struct delayed_work	cable_work;
+	struct delayed_work cable_work;
 	struct delayed_work polling_work;
 	struct delayed_work measure_work;
 	struct delayed_work otg_work;
@@ -705,7 +705,8 @@ static int sec_bat_get_fuelgauge_data(struct sec_bat_info *info, int type)
 		   as 1st UI full charging, 2nd real full charging.
 		   This is for the 1st UI Full charging.
 		*/
-		if (info->ui_full_charge_status)
+		if (info->ui_full_charge_status &&
+		    info->charging_status == POWER_SUPPLY_STATUS_CHARGING)
 			value.intval = 100;
 #endif
 		break;
@@ -789,7 +790,8 @@ static int sec_bat_get_property(struct power_supply *ps,
 		}
 
 #if defined(CONFIG_TARGET_LOCALE_USA)
-		if (info->ui_full_charge_status) {
+		if (info->ui_full_charge_status &&
+		    info->charging_status == POWER_SUPPLY_STATUS_CHARGING) {
 			val->intval = 100;
 			break;
 		}
@@ -827,6 +829,9 @@ static int sec_bat_handle_charger_topoff(struct sec_bat_info *info)
 		info->recharging_status = false;
 		info->charging_passed_time = 0;
 		info->charging_start_time = 0;
+#if defined(CONFIG_TARGET_LOCALE_USA)
+		info->ui_full_charge_status = false;
+#endif
 		/* disable charging */
 		value.intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		ret = psy->set_property(psy, POWER_SUPPLY_PROP_STATUS,
@@ -1975,15 +1980,16 @@ static void sec_check_chgcurrent(struct sec_bat_info *info)
 				}
 			} else { /* adc data is ok */
 #if defined (CONFIG_TARGET_LOCALE_USA)
-				if (info->batt_current_adc <= CURRENT_OF_FULL_CHG_UI &&
+				if (info->charging_status != POWER_SUPPLY_STATUS_FULL &&
+				    info->batt_current_adc <= CURRENT_OF_FULL_CHG_UI &&
 				    !info->ui_full_charge_status)
 				{
 					cnt_ui++;
-					printk("%s : UI full state? %d, %d\n", __func__, 
-	  					                 info->batt_current_adc, cnt_ui);
+					printk("%s : UI full state? %d, %d\n", __func__,
+					       info->batt_current_adc, cnt_ui);
 					if (cnt_ui >= info->full_cond_count) {
 						printk("%s : UI full state!! %d/%d\n",
-	   				                __func__, cnt_ui, info->full_cond_count);
+							__func__, cnt_ui, info->full_cond_count);
 
 						info->ui_full_charge_status = true;
 						cnt_ui = 0;
@@ -1991,6 +1997,7 @@ static void sec_check_chgcurrent(struct sec_bat_info *info)
 					}
 				}
 #endif /* CONFIG_TARGET_LOCALE_USA */
+
 				if (info->batt_current_adc <= CURRENT_OF_FULL_CHG) {
 					is_full_condition = true;
 				} else {
@@ -2215,11 +2222,14 @@ static int sec_bat_enable_charging(struct sec_bat_info *info, bool enable)
 static void sec_bat_handle_unknown_disable(struct sec_bat_info *info)
 {
 	printk(" %s : cable_type = %d\n", __func__, info->cable_type);
-		
+
 	info->batt_full_status = BATT_NOT_FULL;
 	info->recharging_status = false;
 	info->test_info.is_rechg_state = false;
 	info->charging_start_time = 0;
+#if defined(CONFIG_TARGET_LOCALE_USA)
+	info->ui_full_charge_status = false;
+#endif
 	info->charging_status = POWER_SUPPLY_STATUS_DISCHARGING;
 	info->is_timeout_chgstop = false;
 	sec_bat_enable_charging(info, false);
@@ -2504,7 +2514,20 @@ static void sec_bat_monitor_work(struct work_struct *work)
 		printk("[fg] p:%d, s1:%d, s2:%d, v:%d, t:%d\n", info->batt_raw_soc,
 			info->batt_soc, info->batt_presoc,
 			info->batt_vcell, info->batt_temp_radc);
-	
+
+#if defined (CONFIG_TARGET_LOCALE_USA)
+	/* for charging ui error case */
+	if (info->charging_status == POWER_SUPPLY_STATUS_DISCHARGING &&
+	    info->ui_full_charge_status)
+		printk("%s: while discharging, ui full charge status is turned on. \
+%d %d %d %d %u \n", __func__,
+			   info->charging_enabled,
+			   info->is_timeout_chgstop,
+			   info->is_adc_wq_freezed,
+			   info->is_adc_ok,
+			   info->batt_full_status);
+#endif
+
 	power_supply_changed(&info->psy_bat);
 
 	wake_unlock(&info->monitor_wake_lock);
