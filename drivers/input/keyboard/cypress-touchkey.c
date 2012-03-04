@@ -425,6 +425,10 @@ static irqreturn_t touchkey_interrupt(int irq, void *dummy)  // ks 79 - threaded
 		
 		if(g_debug_switch)			
 			printk(KERN_DEBUG "touchkey release keycode:%d \n", touchkey_keycode[data[0] & KEYCODE_BIT]);
+#if defined(CONFIG_USA_MODEL_SGH_T989) || defined(CONFIG_USA_MODEL_SGH_I727)
+		else
+			printk(KERN_DEBUG "touchkey release\n");
+#endif
 
 	} else {
 		if (touch_is_pressed) {   
@@ -439,6 +443,10 @@ static irqreturn_t touchkey_interrupt(int irq, void *dummy)  // ks 79 - threaded
 			
 			if(g_debug_switch)				
 				printk(KERN_DEBUG "touchkey press keycode:%d \n", touchkey_keycode[data[0] & KEYCODE_BIT]);
+#if defined(CONFIG_USA_MODEL_SGH_T989) || defined(CONFIG_USA_MODEL_SGH_I727)
+			else
+				printk(KERN_DEBUG "touchkey press\n");
+#endif
 		}
 	}
 	set_touchkey_debug('A');
@@ -731,8 +739,14 @@ if(touchled_cmd_reversed) {
 				tkey_led_vdd_enable(1); 	
 			}
 #endif		
-
+#if defined(CONFIG_USA_MODEL_SGH_T989) || defined(CONFIG_USA_MODEL_SGH_I727)
+	enable_irq(IRQ_TOUCHKEY_INT);
+	touchkey_enable = 1;
+	msleep(50);
+	touchkey_auto_calibration(1/*on*/);
+#else
 schedule_delayed_work(&touch_resume_work, msecs_to_jiffies(500));
+#endif
 }
 #endif				// End of CONFIG_HAS_EARLYSUSPEND
 

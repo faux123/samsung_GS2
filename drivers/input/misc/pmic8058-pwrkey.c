@@ -37,6 +37,8 @@
 #define PON_CNTL_PULL_UP BIT(7)
 #define PON_CNTL_TRIG_DELAY_MASK (0x7)
 
+static bool g_debug_switch = false;
+
 struct pmic8058_pwrkey {
 	struct input_dev *pwr;
 	int key_press_irq;
@@ -104,7 +106,8 @@ static irqreturn_t pwrkey_press_irq(int irq, void *_pwrkey)
 		//input_report_key(pwrkey->pwr, KEY_END, 1);
 		input_report_key(pwrkey->pwr, KEY_POWER, 1);
 		input_sync(pwrkey->pwr);
-		printk(KERN_DEBUG "Power Key Press Code:%d \n", KEY_POWER);	
+		if (g_debug_switch)
+			printk(KERN_DEBUG "Power Key Press Code:%d \n", KEY_POWER);	
 
 		#if defined(CONFIG_SEC_DEBUG)
 		sec_debug_check_crash_key(KEY_POWER, 1);
@@ -158,7 +161,8 @@ static irqreturn_t pwrkey_release_irq(int irq, void *_pwrkey)
 //		input_report_key(pwrkey->pwr, KEY_END, 0);
 		input_report_key(pwrkey->pwr, KEY_POWER, 0);		
 		input_sync(pwrkey->pwr);
-		printk(KERN_DEBUG "Power Key Release Code:%d \n", KEY_POWER);	
+		if (g_debug_switch)
+			printk(KERN_DEBUG "Power Key Release Code:%d \n", KEY_POWER);	
 		#if defined(CONFIG_SEC_DEBUG)
 		sec_debug_check_crash_key(KEY_POWER, 0);
 		#endif
@@ -280,7 +284,8 @@ void recheck_pwrk_release_func(struct work_struct *work)
 
 		input_report_key(pwrkey->pwr, KEY_POWER, 0);		
 		input_sync(pwrkey->pwr);
-		printk(KERN_DEBUG "Power Key Release Code:%d \n", KEY_POWER);	
+		if (g_debug_switch)
+			printk(KERN_DEBUG "Power Key Release Code:%d \n", KEY_POWER);	
 		#if defined(CONFIG_SEC_DEBUG)
 		sec_debug_check_crash_key(KEY_POWER, 0);
 		#endif

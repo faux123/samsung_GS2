@@ -30,7 +30,10 @@ MODULE_LICENSE("GPL");
 #define BTHID_NAME              "bthid"
 #define BTHID_MINOR             224
 #define BTHID_IOCTL_RPT_DSCP    1
+#define BTHID_IOCTL_RPT_DI      3
+#define BTHID_IOCTL_RPT_NAME    5
 #define BTHID_MAX_CTRL_BUF_LEN  508
+#define BTHID_DEV_NAME_LEN 128 /* size of hid_device's name field  */
 
 
 struct bthid_ctrl {
@@ -44,6 +47,12 @@ struct bthid_device {
     int                dscp_set;
 };
 
+struct bthid_di {
+    u16 vendor_id;      /* vendor ID */
+    u16 product_id;     /* product ID */
+    u16 version;        /* version */
+    u8 ctry_code;      /*Country Code.*/
+};
 
 static int bthid_ll_start(struct hid_device *hid)
 {
@@ -202,16 +211,66 @@ static ssize_t bthid_write(struct file *file, const char __user *buffer, size_t 
 static int bthid_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
 {
     int ret;
+    char *name;
     struct bthid_ctrl *p_ctrl;
     struct bthid_device *p_dev = file->private_data;
+    struct bthid_di di;
 
     printk("######## bthid_ioctl: cmd = %d ########\n", cmd);
 
-    if (cmd != BTHID_IOCTL_RPT_DSCP || p_dev == NULL)
+    if (p_dev == NULL)
     {
         return -EINVAL;
     }
 
+    if (cmd == BTHID_IOCTL_RPT_NAME) {
+        name = kzalloc(BTHID_DEV_NAME_LEN, GFP_KERNEL);
+
+        if (name == NULL)
+            return -ENOMEM;
+
+        if (copy_from_user(name, (void __user *)arg, BTHID_DEV_NAME_LEN)) {
+            kfree(name);
+            return -EFAULT;
+        }
+
+        printk("%s: name=%s\n", __func__, name);
+
+        if (!p_dev->hid) {
+            p_dev->hid = hid_allocate_device();
+            if (p_dev->hid == NULL)
+            {
+                printk("Oops: Failed to allocation HID device.\n");
+                kfree(name);
+                return -ENOMEM;
+            }
+        }
+
+        strncpy(p_dev->hid->name, name, 128);
+
+        kfree(name);
+    } else if (cmd == BTHID_IOCTL_RPT_DI) {
+        if (copy_from_user(&di, (void __user *) arg, sizeof(struct bthid_di)) != 0)
+        {
+            return -EFAULT;
+        }
+
+        printk("%s: vendor=0x%04x, product=0x%04x, version=0x%04x, country=0x%02x\n", __func__,
+                di.vendor_id, di.product_id, di.version, di.ctry_code);
+		
+        if (!p_dev->hid) {
+            p_dev->hid = hid_allocate_device();
+            if (p_dev->hid == NULL)
+            {
+                printk("Oops: Failed to allocation HID device.\n");
+                return -ENOMEM;
+            }
+        }
+            p_dev->hid->vendor = di.vendor_id;
+            p_dev->hid->product = di.product_id;
+            p_dev->hid->version = di.version;
+            p_dev->hid->country = di.ctry_code;  
+    } else if (cmd == BTHID_IOCTL_RPT_DSCP) {
     p_ctrl = kmalloc(sizeof(struct bthid_ctrl), GFP_KERNEL);
     if (p_ctrl == NULL)
     {
@@ -232,6 +291,7 @@ static int bthid_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
         return -EINVAL;
     }
     
+        if (!p_dev->hid) {
     p_dev->hid = hid_allocate_device();
     if (p_dev->hid == NULL)
     {
@@ -240,16 +300,21 @@ static int bthid_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
         kfree(p_ctrl);
         return -ENOMEM;
     }
+        }
+
+    //temperaly use hard code. GB does not support id kl
+        if( p_dev->hid->vendor == 0x04E8 && p_dev->hid->product == 0x7021){
+            strcpy(p_dev->hid->name, "Vendor_04E8_Product_7021");
+            p_dev->hid->name[strlen("Vendor_04E8_Product_7021")] =  '\0';
+        } else {
+            strcpy(p_dev->hid->name, "Broadcom Bluetooth HID");
+            p_dev->hid->name[strlen("Broadcom Bluetooth HID")] =  '\0';	
+        }
     
     p_dev->hid->bus         = BUS_BLUETOOTH;
-    p_dev->hid->vendor      = 0;
-    p_dev->hid->product     = 0;
-    p_dev->hid->version     = 0;
-    p_dev->hid->country     = 0;
     p_dev->hid->ll_driver   = &bthid_ll_driver;
     p_dev->hid->driver_data = p_ctrl;
 
-    strcpy(p_dev->hid->name, "Broadcom Bluetooth HID");
 
     ret = hid_add_device(p_dev->hid);
 
@@ -273,6 +338,10 @@ static int bthid_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
     }
 
     p_dev->dscp_set = 1;
+    } else {
+        printk("Invlid ioctl value");
+        return -EINVAL;
+    }
 
     printk("######## bthid_ioctl: done ########\n");
     return 0;
