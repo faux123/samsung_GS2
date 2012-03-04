@@ -20,7 +20,7 @@
  *
  * To be used with Qualcomm's SDIO-Client connected to this host.
  */
-#include "sdio_al_private.h"
+#include  "sdio_al_private.h"
 
 #include <linux/module.h>
 #include <linux/scatterlist.h>
