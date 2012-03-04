@@ -76,6 +76,10 @@ module_param_named(
 	debug_mask, msm_pm_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP
 );
 
+static unsigned int msm_pm_debug_factory;
+module_param_named(
+	fac_debug_mask, msm_pm_debug_factory, int, S_IRUGO | S_IWUSR | S_IWGRP
+);
 
 /******************************************************************************
  * Sleep Modes and Parameters
@@ -950,7 +954,7 @@ static int msm_pm_enter(suspend_state_t state)
 #endif
 
 		clock_debug_print_enabled();
-		regulator_debug_print_enabled();
+		regulator_debug_print_enabled(msm_pm_debug_factory);
 
 #ifdef CONFIG_MSM_SLEEP_TIME_OVERRIDE
 		if (msm_pm_sleep_time_override > 0) {
