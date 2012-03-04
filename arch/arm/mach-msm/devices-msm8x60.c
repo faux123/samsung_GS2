@@ -123,19 +123,21 @@ static void charm_ap2mdm_kpdpwr_off(void)
 	}
 	gpio_direction_output(AP2MDM_ERRFATAL, 0);
 
-	if (i == 0) {
+
+	/* Hard reset using RESIN_N  */        
+	if (i == 0)
 		pr_err("%s: MDM2AP_STATUS never went low. Doing a hard reset \
 			of the charm modem.\n", __func__);
-		gpio_direction_output(AP2MDM_PMIC_RESET_N, 1);
-		/*
-		* Currently, there is a debounce timer on the charm PMIC. It is
-		* necessary to hold the AP2MDM_PMIC_RESET low for ~3.5 seconds
-		* for the reset to fully take place. Sleep here to ensure the
-		* reset has occured before the function exits.
-		*/
-		msleep(4000);
-		gpio_direction_output(AP2MDM_PMIC_RESET_N, 0);
-	}
+			
+	gpio_direction_output(AP2MDM_PMIC_RESET_N, 1);
+	/*
+	* Currently, there is a debounce timer on the charm PMIC. It is
+	* necessary to hold the AP2MDM_PMIC_RESET low for ~3.5 seconds
+	* for the reset to fully take place. Sleep here to ensure the
+	* reset has occured before the function exits.
+	*/
+	msleep(4000);
+	gpio_direction_output(AP2MDM_PMIC_RESET_N, 0);
 }
 
 static struct resource charm_resources[] = {
