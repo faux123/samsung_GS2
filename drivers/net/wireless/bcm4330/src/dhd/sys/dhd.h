@@ -514,6 +514,12 @@ extern char nv_path[MOD_PARAM_PATHLEN];
 extern void dhd_wait_for_event(dhd_pub_t *dhd, bool *lockvar);
 extern void dhd_wait_event_wakeup(dhd_pub_t*dhd);
 
+#ifdef ARP_OFFLOAD_SUPPORT
+void dhd_aoe_hostip_clr(dhd_pub_t *dhd);
+void dhd_aoe_arp_clr(dhd_pub_t *dhd);
+void dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr);
+#endif /* ARP_OFFLOAD_SUPPORT */
+
 #ifdef CHECK_CHIP_REV
 extern uint8 g_chipver;
 #endif

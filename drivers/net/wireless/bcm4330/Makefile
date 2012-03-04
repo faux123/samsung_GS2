@@ -27,6 +27,7 @@ EXTRA_CFLAGS += -DRDWR_MACADDR
 EXTRA_CFLAGS += -DROAM_ENABLE
 EXTRA_CFLAGS += -DROAM_CHANNEL_CACHE
 EXTRA_CFLAGS += -DOKC_SUPPORT
+EXTRA_CFLAGS += -DDO_NOT_CHANGE_SSID
 else
 EXTRA_CFLAGS += -DWRITE_MACADDR
 endif
@@ -92,6 +93,12 @@ ifeq ($(CONFIG_USA_OPERATOR_ATT),y)
 #Hidden SSID
 EXTRA_CFLAGS += -DUSE_HIDDEN_SSID
 endif
+#ifeq ($(TARGET_PRODUCT),SGH-I727)
+#EXTRA_CFLAGS += -DBCMCCX
+#endif
+
+# ARP offloading
+EXTRA_CFLAGS += -DARP_OFFLOAD_SUPPORT
 
 ###############################################################################################
 

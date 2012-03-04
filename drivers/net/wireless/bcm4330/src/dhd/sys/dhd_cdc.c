@@ -554,10 +554,14 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	int roam_delta[2] = {10, WLC_BAND_ALL};
 	int roam_fullscan_period = 120;
 #else
+#ifdef BCMCCX
+        uint roamvar = 0;
+#else
 	uint roamvar = 1;
 #endif
 #ifdef OKC_SUPPORT
 	uint32 okc = 1;
+#endif
 #endif
 	uint power_mode = PM_FAST;
 	uint32 dongle_align = DHD_SDALIGN;
@@ -565,8 +569,10 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint bcn_timeout = 12;
 	int arpoe = 1;
 	int arp_ol = 0xb;
+#ifndef BCMCCX	
 	int scan_assoc_time = 40;
 	int scan_unassoc_time = 80;
+#endif	
 	int assoc_retry = 3;
 	char buf[256];
 #ifdef USE_WIFI_DIRECT
@@ -604,6 +610,11 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #ifdef SOFTAP
 	}
 #endif /* SOFTAP */
+
+#ifdef BCMCCX
+	if(roamvar)
+		DHD_ERROR((" roam_off =%d BCMCCX roam_off should be 0\n",roamvar));
+#endif
 
 	/* Disable built-in roaming to allowed ext supplicant to take care of roaming */
 	bcm_mkiovar("roam_off", (char *)&roamvar, 4, iovbuf, sizeof(iovbuf));
@@ -697,13 +708,19 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	setbit(eventmask, WLC_E_TRACE);
 #endif
 
+#if defined(BCMCCX) && defined(BCMDBG_EVENT)
+	setbit(eventmask, WLC_E_ADDTS_IND);
+	setbit(eventmask, WLC_E_DELTS_IND);
+#endif /* defined(BCMCCX) && (BCMDBG_EVENT) */
+
 	bcm_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-
+#ifndef BCMCCX
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_SCAN_CHANNEL_TIME, (char *)&scan_assoc_time,
 		sizeof(scan_assoc_time), TRUE, 0);
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_SCAN_UNASSOC_TIME, (char *)&scan_unassoc_time,
 		sizeof(scan_unassoc_time), TRUE, 0);
+#endif
 
 	/* Set ARP offload */
 	bcm_mkiovar("arpoe", (char *)&arpoe, 4, iovbuf, sizeof(iovbuf));
