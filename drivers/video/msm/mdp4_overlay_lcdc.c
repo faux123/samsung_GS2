@@ -405,13 +405,85 @@ void mdp4_overlay_lcdc_set_perf(struct msm_fb_data_type *mfd)
 	mdp4_set_perf_level();
 }
 
+void mdp4_keep_update_gap(int update_type)
+{
+
+#define LEAST_DELAY_TIME	5000
+#define WAIT_SYNC_CALL		0
+#define	NO_WAIT_SYNC_CALL	1
+
+	static int update_flag = 0;
+	static struct timeval tv_from_wait;
+	static struct timeval tv_from_no_wait;
+	long latency_time = 0;
+
+	switch(update_type)
+	{
+		case WAIT_SYNC_CALL:
+			update_flag = WAIT_SYNC_CALL;
+			do_gettimeofday(&tv_from_wait);
+			break;
+		case NO_WAIT_SYNC_CALL:
+			if(update_flag != WAIT_SYNC_CALL)	
+			break;
+			
+			do_gettimeofday(&tv_from_no_wait);
+			if( (tv_from_wait.tv_sec == tv_from_no_wait.tv_sec) && ((tv_from_no_wait.tv_usec - tv_from_wait.tv_usec) < LEAST_DELAY_TIME)  )
+			{
+				latency_time = tv_from_no_wait.tv_usec - tv_from_wait.tv_usec;
+				printk("=== Too short time to update 1 - current latency time %d, delay %d\n",latency_time, LEAST_DELAY_TIME - latency_time);
+				usleep(LEAST_DELAY_TIME - latency_time); 
+			}
+			else if( (tv_from_wait.tv_sec != tv_from_no_wait.tv_sec) && (tv_from_no_wait.tv_usec < tv_from_wait.tv_usec) )
+			{
+				latency_time = (1000000 - tv_from_wait.tv_usec) + tv_from_no_wait.tv_usec;
+				if(latency_time < LEAST_DELAY_TIME)
+				{
+					printk("=== Too short time to update 2- current latency time %d, delay %d\n",latency_time, LEAST_DELAY_TIME - latency_time);
+					usleep(LEAST_DELAY_TIME - latency_time); 
+				}
+			}
+			update_flag = NO_WAIT_SYNC_CALL;
+			break;
+		default:
+			break;
+	}
+	return;
+}
+
+static void mdp4_overlay_lcdc_prefill(struct msm_fb_data_type *mfd)
+{
+	unsigned long flag;
+
+	if (lcdc_pipe->blt_addr) {
+		mdp4_overlay_lcdc_dma_busy_wait(mfd);
+
+		mdp4_lcdc_blt_ov_update(lcdc_pipe);
+		lcdc_pipe->ov_cnt++;
+
+		spin_lock_irqsave(&mdp_spin_lock, flag);
+		outp32(MDP_INTR_CLEAR, INTR_OVERLAY0_DONE);
+		mdp_intr_mask |= INTR_OVERLAY0_DONE;
+		outp32(MDP_INTR_ENABLE, mdp_intr_mask);
+		mdp_enable_irq(MDP_OVERLAY0_TERM);
+		mfd->dma->busy = TRUE;
+		mb();	/* make sure all registers updated */
+		spin_unlock_irqrestore(&mdp_spin_lock, flag);
+		outpdw(MDP_BASE + 0x0004, 0); /* kickoff overlay engine */
+		mb();
+	}
+}
+
 void mdp4_overlay_lcdc_vsync_push(struct msm_fb_data_type *mfd,
 			struct mdp4_overlay_pipe *pipe)
 {
 	unsigned long flag;
 
 	if (pipe->flags & MDP_OV_PLAY_NOWAIT)
+	{
+		mdp4_keep_update_gap(NO_WAIT_SYNC_CALL);
 		return;
+	}
 
 	if (lcdc_pipe->blt_addr) {
 		mdp4_overlay_lcdc_dma_busy_wait(mfd);
@@ -430,8 +502,10 @@ void mdp4_overlay_lcdc_vsync_push(struct msm_fb_data_type *mfd,
 		outpdw(MDP_BASE + 0x0004, 0); /* kickoff overlay engine */
 		mb();
 		mdp4_overlay_lcdc_wait4event(mfd, INTR_DMA_P_DONE);
+		mdp4_keep_update_gap(WAIT_SYNC_CALL);
 	} else {
 		mdp4_overlay_lcdc_wait4event(mfd, INTR_PRIMARY_VSYNC);
+		mdp4_keep_update_gap(WAIT_SYNC_CALL);
 	}
 }
 
@@ -491,12 +565,19 @@ static void mdp4_lcdc_do_blt(struct msm_fb_data_type *mfd, int enable)
 
 	if (!change)
 		return;
-
-	mdp4_overlay_lcdc_wait4event(mfd, INTR_DMA_P_DONE);
+	if (lcdc_pipe->blt_addr) {
+		mdp4_overlay_lcdc_wait4event(mfd, INTR_DMA_P_DONE);
+	}
 	MDP_OUTP(MDP_BASE + LCDC_BASE, 0);	/* stop lcdc */
 	msleep(20);
 	mdp4_overlayproc_cfg(lcdc_pipe);
 	mdp4_overlay_dmap_xy(lcdc_pipe);
+	if (lcdc_pipe->blt_addr) {
+		MDP_OUTP(MDP_BASE + LCDC_BASE, 1);
+		mdp4_overlay_lcdc_prefill(mfd);
+		mdp4_overlay_lcdc_prefill(mfd);
+		MDP_OUTP(MDP_BASE + LCDC_BASE, 0);
+	}
 	MDP_OUTP(MDP_BASE + LCDC_BASE, 1);	/* start lcdc */
 }
 

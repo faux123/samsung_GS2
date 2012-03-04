@@ -38,12 +38,17 @@
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+
+// a software workaround for a potential HW problem with HDMI which exists on V1 and V2 8660 units
+#define WORKAROUND_FOR_HDMI_CURRENT_LEAKAGE_FIX
+
 static int hdmi_msm_hpd_on(bool trigger_handler);
 #define CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
 #ifdef CONFIG_USA_MODEL_SGH_I717
 #undef CONFIG_FB_MSM_HDMI_MSM_PANEL_HDCP_SUPPORT
 #endif
 #define CONFIG_VIDEO_MHL_V1
+
 
 #define QFPROM_BASE		((uint32)hdmi_msm_state->qfprom_io)
 #define HDMI_BASE		((uint32)hdmi_msm_state->hdmi_io)
@@ -3023,6 +3028,15 @@ void hdmi_msm_powerdown_phy(void)
 {
 	/* Disable PLL */
 	HDMI_OUTP_ND(0x030C, 0x00);
+
+#ifdef WORKAROUND_FOR_HDMI_CURRENT_LEAKAGE_FIX
+	HDMI_OUTP_ND(0x02D4, 0x4);  //Assert RESET PHY from controller
+	udelay(10);
+	HDMI_OUTP_ND(0x02D4, 0x0);  //De-assert RESET PHY from controller
+	HDMI_OUTP_ND(0x0308, 0x1F); //Turn off Driver
+	udelay(10);
+#endif
+
 	/* Power down PHY */
 	HDMI_OUTP_ND(0x0308, 0xFF); /*0b01111111*/
 }
@@ -4052,11 +4066,14 @@ static void hdmi_msm_hpd_off(void)
 	disable_irq(hdmi_msm_state->irq);
 
 	hdmi_msm_set_mode(FALSE);
+#ifdef WORKAROUND_FOR_HDMI_CURRENT_LEAKAGE_FIX
+	hdmi_msm_powerdown_phy();
+#else
 	//HDMI_OUTP_ND(0x0308, 0x7F); /*0b01111111*/
 	HDMI_OUTP_ND(0x0308, 0xFF); /*0b01111111*/
 	u32 in_val = HDMI_INP(0x0308);
 	DEV_DBG("HDMI[%04x] => [%08x]\n",offset, in_val);
-
+#endif
 	hdmi_msm_state->hpd_initialized = FALSE;
 	hdmi_msm_state->pd->cec_power(0);
 	hdmi_msm_state->pd->enable_5v(0);

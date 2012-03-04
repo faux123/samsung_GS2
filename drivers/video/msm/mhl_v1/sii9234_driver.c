@@ -1556,6 +1556,7 @@ static	void	Int4Isr( void )
 		//
 		// Check RGND register and send wake up pulse to the peer
 		//
+		msleep(1);
 		ProcessRgnd();
 	}
 
