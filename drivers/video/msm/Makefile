@@ -124,6 +124,10 @@ endif
 
 obj-$(CONFIG_FB_MSM_LCDC_PANEL) += lcdc_panel.o
 obj-$(CONFIG_FB_MSM_LCDC_LD9040_WVGA) += lcdc_ld9040.o
+
+obj-$(CONFIG_USA_MODEL_SGH_T989) += smart_dimming_ea8868.o
+obj-$(CONFIG_USA_MODEL_SGH_I727) += smart_dimming_ea8868.o
+
 obj-$(CONFIG_FB_MSM_LCDC_S6E63M0_WVGA) += lcdc_S6E63M0.o
 obj-$(CONFIG_FB_MSM_LCDC_PRISM_WVGA) += lcdc_prism.o
 obj-$(CONFIG_FB_MSM_LCDC_SAMSUNG_WSVGA) += lcdc_samsung_wsvga.o

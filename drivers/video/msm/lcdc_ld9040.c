@@ -62,10 +62,16 @@
 #include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/miscdevice.h>
-#include "lcdc_ld9040_seq.h"
-#include "lcdc_ea8868_seq.h"
-#include "mdp4_video_enhance.h"
+#include  "lcdc_ld9040_seq.h"
+#include  "lcdc_ea8868_seq.h"
+#include  "mdp4_video_enhance.h"
 
+#if defined(CONFIG_USA_MODEL_SGH_T989) || defined (CONFIG_USA_MODEL_SGH_I727)
+#define SMART_DIMMING 1
+#endif
+#if defined(SMART_DIMMING) // smartdimming
+#include "smart_dimming_ea8868.h"
+#endif
 #define LCDC_DEBUG
 
 //#define LCDC_19GAMMA_ENABLE
@@ -123,6 +129,12 @@ struct ld9040 {
 	struct backlight_device		*bd;
 	struct lcd_platform_data	*lcd_pd;
 	struct early_suspend    early_suspend;
+
+#if defined(SMART_DIMMING) // smartdimming
+	boolean	isSmartDimming;
+	boolean	isSmartDimming_loaded;
+	struct str_smart_dim smart;
+#endif
 };
 
 static struct ld9040 lcd;
@@ -390,6 +402,73 @@ static struct setting_table power_off_sequence[] = {
 };
 #define POWER_OFF_SEQ	(int)(sizeof(power_off_sequence)/sizeof(struct setting_table))
 
+#if defined(SMART_DIMMING) // smartdimming
+#define LDI_MTP_LENGTH (21)
+#define LDI_Gamma_CMD_LENGTH (24)
+#define LDI_MTP_ADDR	(0xFE)
+unsigned char lcd_mtp_data[LDI_MTP_LENGTH] = {0x00,};
+
+static struct setting_table enable_mtp_register[] = {
+	{ 0xF0, 2, //[1] Level 2 Command Access
+			{ 0x5A, 0x5A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,},
+		0 },
+
+	{ 0xF1, 2, //[2] MTP Command Access
+			{ 0x5A, 0x5A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,},
+		0 },
+
+	{ 0xFD, 1, //[3] Set Read Address 0xD3 = MTP Offset Data
+			{ 0xD3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,},
+		0 }	
+};
+#define MTP_ENABLE_SEQ	(int)(sizeof(enable_mtp_register)/sizeof(struct setting_table))
+
+static struct setting_table disable_mtp_register[] = {
+	{ 0xf1, 2, 
+				{ 0xa5, 0xa5, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,},
+			0 }
+};
+
+struct setting_table EA8868_SM2_GAMMA_SmartDimming[] = {
+{0xF9, 24, {
+	0x00, 0xC0, 0xBA, 0xA5, 0xCF, 0xC0,0xC8, 0x55, 0x00, 0xE0, 0xB8, 0xA3,0xCD, 0xBE, 0xC9, 0x55, 0x00, 0xE7,0xB8, 0xA3, 0xCD, 0xBE, 0xCF, 0x55},
+		0},
+};
+
+unsigned char GAMMA_SmartDimming_VALUE_SET_300cd_SM2_ID4[LDI_Gamma_CMD_LENGTH] = {
+0x00, 0xC0, 0xBA, 0xA5, 0xCF, 0xC0,
+0xC8, 0x55, 0x00, 0xE0, 0xB8, 0xA3,
+0xCD, 0xBE, 0xC9, 0x55, 0x00, 0xE7,
+0xB8, 0xA3, 0xCD, 0xBE, 0xCF, 0x55
+};
+
+unsigned char GAMMA_SmartDimming_VALUE_SET_300cd_SM2_ID5[LDI_Gamma_CMD_LENGTH] = {
+0x00, 0xCA, 0xC8, 0xBC, 0xE0, 0xDB,
+0xF9, 0x11, 0x00, 0xEE, 0xBC, 0xAD,
+0xD6, 0xD7, 0xE8, 0x11, 0x00, 0xF5,
+0xC3, 0xB5, 0xDC, 0xD6, 0xF5, 0x11
+};
+
+unsigned char GAMMA_SmartDimming_VALUE_SET_300cd_SM3[LDI_Gamma_CMD_LENGTH] = {
+0x00, 0xB9, 0xBA, 0xA6, 0xCC, 0xC5, 
+0xC5, 0x55, 0x00, 0xC0, 0xB8, 0xA0, 
+0xC5, 0xBB, 0x9D, 0x55, 0x00, 0xE7, 
+0xB6, 0xA1, 0xC9, 0xC7, 0xDB, 0x55,
+};
+
+
+unsigned char GAMMA_SmartDimming_VALUE_SET_300cd[LDI_Gamma_CMD_LENGTH] = {
+0x00,
+};
+#endif
 
 static int lcdc_ld9040_panel_off(struct platform_device *pdev);
 
@@ -412,6 +491,11 @@ struct ld9040_state_type{
 	boolean display_on;
 	boolean disp_powered_up;
 };
+
+#if defined(SMART_DIMMING) // smartdimming
+static void lcd_gamma_smartDimming_apply(int srcGamma);
+static void ld9040_read_mtp(u8 *mtp_data);
+#endif
 
 volatile struct ld9040_state_type ld9040_state = { 0 };
 static struct msm_panel_common_pdata *lcdc_ld9040_pdata;
@@ -713,6 +797,129 @@ static void spi_init(void)
 
 }
 
+#if defined(SMART_DIMMING) // smartdimming
+static void lcd_gamma_smartDimming_apply(int srcGamma)
+{
+	u32 original_bl=0;
+	switch(srcGamma)
+		{
+		case 0: original_bl = 30; break;
+		case 1: original_bl = 40; break;
+		case 2: original_bl = 70; break;
+		case 3 ... 24: original_bl = srcGamma * 10 + 60 /* 90 ~ 300 */; break;
+		default: original_bl= 300; break;
+		}
+	
+ 	calc_gamma_table(&(lcd.smart), original_bl, EA8868_SM2_GAMMA_SmartDimming[0].parameter);
+	setting_table_write(EA8868_SM2_GAMMA_SmartDimming);
+}
+#define MTP_READ_DELAY DEFAULT_USLEEP
+static void ld9040_read_mtp(u8 *mtp_data)
+{
+	int i=0, data=0, j=0;
+	int rc=0;
+	
+    if(mtp_data == NULL) {
+		DPRINT( "SMART!! %s : mtp_data == null!!\n", __func__);
+    	return; }
+
+	for(i=0; i<MTP_ENABLE_SEQ; i++)
+		setting_table_write(&enable_mtp_register[i]);
+	udelay(MTP_READ_DELAY);	
+	/* Chip Select - low */
+	LCD_CSX_LOW
+	udelay(MTP_READ_DELAY);
+
+	/* command byte first */
+	lcdtool_write_byte(0, LDI_MTP_ADDR);
+
+	rc = gpio_direction_input(spi_sdi);
+	if(rc) {
+		printk(KERN_ERR "%s gpio_direction_input error", __func__); return;}
+
+/* Discard 1 Bytes (Dummy Data) */
+	for(i=0; i<8; i++){
+	LCD_SCL_LOW /* clk low */
+	udelay(MTP_READ_DELAY);
+	LCD_SCL_HIGH /* clk high */
+	udelay(MTP_READ_DELAY);
+	}
+
+	for(i=0; i < LDI_MTP_LENGTH; i++) {
+	data =0;
+		for(j=0; j<8; j++){
+		LCD_SCL_LOW /* clk low */
+		udelay(MTP_READ_DELAY);
+		data <<= 1;
+		data |= gpio_get_value(spi_sdi) ? 1 : 0;
+		LCD_SCL_HIGH /* clk high */
+		udelay(MTP_READ_DELAY);
+		}
+	
+	mtp_data[i] = data;
+	}
+	
+	rc = gpio_direction_output(spi_sdi, 0);
+	if(rc) {
+		printk(KERN_ERR "%s gpio_direction_output error", __func__); return;}
+
+	/* Chip Select - high */
+	udelay(MTP_READ_DELAY);
+	LCD_CSX_HIGH
+    setting_table_write(disable_mtp_register);
+	lcd.isSmartDimming_loaded = TRUE;
+}
+
+#if 0
+static ssize_t mtp_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    int i,j;
+    unsigned int cnt; 
+    struct lcd_info *lcd = dev_get_drvdata(dev);
+    const char *ivstr[IV_MAX] = {
+    "V1",
+    "V15",
+    "V35",
+    "V59",
+    "V87",
+    "V171",
+    "V255"
+    };
+
+    cnt = sprintf(buf, "============ MTP VALUE ============\n");
+    for(i=IV_1;i<IV_MAX;i++){
+        cnt += sprintf(buf+cnt,"[%5s] : ",ivstr[i]);
+        for(j=CI_RED;j<CI_MAX;j++){
+            cnt += sprintf(buf+cnt,"%4d ", lcd->smart.mtp[j][i]);
+        }
+        cnt += sprintf(buf+cnt,"\n");
+    }
+    return cnt; 
+}
+
+
+static DEVICE_ATTR(mtp, 0444, mtp_show, NULL);
+
+static ssize_t gamma_show(struct device *dev, struct
+device_attribute *attr, char *buf)
+{
+    //this function show default gamma value for 300cd 
+    int i,j;
+    unsigned int cnt; 
+    struct lcd_info *lcd = dev_get_drvdata(dev);
+
+    cnt = sprintf(buf, "=============== default gamma ===============\n");
+    for(i=0;i<4;i++){
+        for(j=0;j<6;j++) {
+            cnt += sprintf(buf+cnt,"0x%02x, ",lcd->smart.default_gamma[i*6+j]);
+        }
+        cnt += sprintf(buf+cnt,"\n");
+    }
+    return cnt;
+}
+#endif
+#endif
+
 static void ld9040_disp_powerup(void)
 {
 	DPRINT("start %s\n", __func__);	
@@ -805,13 +1012,26 @@ int ld9040_read_lcd_id(void)
 		DPRINT("lcd EA8868 SM2+iELVSS\n");
 		isEA8868_M3 = 0;
 		isIndividualElvss = 1;
+#if defined(SMART_DIMMING)
+		memcpy(GAMMA_SmartDimming_VALUE_SET_300cd, GAMMA_SmartDimming_VALUE_SET_300cd_SM2_ID4, LDI_Gamma_CMD_LENGTH);
+#endif
 	}
+#if defined(SMART_DIMMING)
+	else if(idcheck[1] == 0x05)
+	{
+		DPRINT("lcd EA8868 SM2+iELVSS Transistor Change!!\n");
+		isEA8868_M3 = 0;
+		isIndividualElvss = 1;
+		memcpy(GAMMA_SmartDimming_VALUE_SET_300cd, GAMMA_SmartDimming_VALUE_SET_300cd_SM2_ID5, LDI_Gamma_CMD_LENGTH);
+	}
+#else
 	else if(idcheck[1] == 0x05)
 	{
 		DPRINT("lcd EA8868 M3+iELVSS\n");
 		isEA8868_M3 = 1;
 		isIndividualElvss = 1;
 	}
+#endif
 	else if(idcheck[1] == 0x12)
         {
 	        DPRINT("lcd EA8868 SM2\n");
@@ -829,7 +1049,18 @@ int ld9040_read_lcd_id(void)
 	}
 
 	init_lcd_id = 1;
-
+#if defined(SMART_DIMMING) // smartdimming
+	if( isEA8868_M3 == 0 && isEA8868 == 1) // Only apply LDI : EA8868 && SM2 
+		{
+			//if (get_hw_rev() > 0x07 ) 
+			#if defined (CONFIG_USA_MODEL_SGH_T989) || defined (CONFIG_USA_MODEL_SGH_I727)
+				if (idcheck[1] == 0x04)
+					lcd.isSmartDimming = TRUE;	
+			#else
+				lcd.isSmartDimming = TRUE;
+			#endif
+		}
+#endif
 	return 0;
 }
 
@@ -908,6 +1139,24 @@ void ld9040_disp_on(void)
 
 		for (i = 0; i < POWER_AUTO_SEQ; i++)
 			setting_table_write(&power_auto_sequence_control[i]);
+#if defined(SMART_DIMMING)
+		if(lcd.isSmartDimming == TRUE)
+		{
+			init_table_info(&(lcd.smart),GAMMA_SmartDimming_VALUE_SET_300cd );
+			ld9040_read_mtp(lcd_mtp_data);
+
+			printk("MTP_READ");
+			int i;
+
+			for(i=0;i<LDI_Gamma_CMD_LENGTH;i++)
+			{
+				printk("0x%x ",lcd_mtp_data[i]);
+			}
+			printk("\n");
+			calc_voltage_table(&(lcd.smart), lcd_mtp_data);
+			lcd.isSmartDimming_loaded = TRUE;
+		}
+#endif
 
 		// Gamma Set
 		#if defined (CONFIG_USA_MODEL_SGH_I727)
@@ -917,13 +1166,13 @@ void ld9040_disp_on(void)
 				lcdc_ld9040_set_brightness(18);
 				jump_from_boot=1;
 			}else{
-				if(lcd.current_brightness <= 0)
+				if(lcd.current_brightness < 0)
 					lcdc_ld9040_set_brightness(DFT_BACKLIGHT_VALUE);
 				else
 				 	lcdc_ld9040_set_brightness(lcd.current_brightness);
 			}
 		#else
-			if(lcd.current_brightness <= 0)
+			if(lcd.current_brightness < 0)
 				lcdc_ld9040_set_brightness(DFT_BACKLIGHT_VALUE);
 			else
 			 	lcdc_ld9040_set_brightness(lcd.current_brightness);
@@ -1068,6 +1317,11 @@ static void ld9040_gamma_ctl(struct ld9040 *lcd)
 					setting_table_write(lcd_ea8868_table_19gamma[0]);
 				else
 #endif					
+#if defined(SMART_DIMMING) // smartdimming	
+				if( lcd->isSmartDimming == TRUE && lcd->isSmartDimming_loaded == TRUE) {
+					lcd_gamma_smartDimming_apply(tune_level);
+					} else
+#endif
 				setting_table_write(lcd_ea8868_table_22gamma[0]);
 		} 
 		} 
@@ -1093,6 +1347,12 @@ static void ld9040_gamma_ctl(struct ld9040 *lcd)
 					setting_table_write(lcd_ea8868_table_19gamma[tune_level]);
 				else
 #endif					
+#if defined(SMART_DIMMING) // smartdimming	
+				if( lcd->isSmartDimming == TRUE && lcd->isSmartDimming_loaded == TRUE) {
+					lcd_gamma_smartDimming_apply(tune_level);
+					} else
+#endif
+
 				setting_table_write(lcd_ea8868_table_22gamma[tune_level]);
 			}
 		
@@ -1335,7 +1595,11 @@ static void updateIndividualElvss_Table( int vector )
 	DPRINT("IElvss : %x+%x=%x\n", IElvssOffset, vector, value);
 }
 
+#if defined (CONFIG_USA_MODEL_SGH_I727)
+static int last_elvss_set = 0;
+#else
 static int last_elvss_set = -1;
+#endif
 static void ld9040_set_elvss(struct ld9040 *lcd)
 {
 	int ret = 0;
@@ -1815,7 +2079,10 @@ static int __devinit ld9040_probe(struct platform_device *pdev)
 
 	lcd.acl_enable = 1;
 	lcd.cur_acl = 0;
-	
+#if defined(SMART_DIMMING) // smartdimming
+	lcd.isSmartDimming = FALSE;
+	lcd.isSmartDimming_loaded = FALSE;	
+#endif
 #ifdef LCDC_19GAMMA_ENABLE
     ret = device_create_file(pwm_backlight_dev, &dev_attr_gamma_mode);
 	if (ret < 0)
