@@ -1937,6 +1937,21 @@ out:
 	return ret;
 }
 
+static unsigned int __regulator_get_mode(struct regulator_dev *rdev)
+{
+	int ret;
+
+	/* sanity check */
+	if (!rdev->desc->ops->get_mode) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = rdev->desc->ops->get_mode(rdev);
+out:
+	return ret;
+}
+
 /**
  * regulator_get_mode - get regulator operating mode
  * @regulator: regulator source
@@ -2585,7 +2600,12 @@ static int showall_enabled(void)
 	list_for_each_entry(rdev, &regulator_list, list) {
 		mutex_lock(&rdev->mutex);
 		if (_regulator_is_enabled(rdev)) {
-			pr_info("\t%s\n", rdev->desc->name);
+			if (rdev->desc->ops)
+				pr_info("  %s, %duV, 0x%x mode\n", rdev_get_name(rdev),
+						_regulator_get_voltage(rdev),
+						__regulator_get_mode(rdev));
+			else
+				pr_info("  %s\n", rdev_get_name(rdev));
 			cnt++;
 		}
 		mutex_unlock(&rdev->mutex);
@@ -2611,9 +2631,9 @@ DEFINE_SIMPLE_ATTRIBUTE(showall_fops, showall_debug_get, NULL,
 static struct dentry *debugfs_base;
 static u32 debug_suspend;
 
-void regulator_debug_print_enabled(void)
+void regulator_debug_print_enabled(unsigned int factory_on)
 {
-	if (likely(!debug_suspend))
+	if (likely(!(debug_suspend || factory_on)))
 		return;
 
 	(void) showall_enabled();
