@@ -907,6 +907,14 @@ config MSM_SDIO_TTY
 	  applications for passing data through the
 	  SDIO interface.
 
+
+config MSM_SDIO_TTY_CIQ
+	bool "SDIO TTY CIQ Driver"
+	depends on MSM_SDIO_AL
+	default n
+	help
+	  SDIO TTY CIQ Driver
+
 config MSM_SMD_TTY
 	bool "SMD TTY Driver"
 	depends on MSM_SMD
@@ -1715,5 +1723,11 @@ config PMIC8058_XOADC_CAL
 	bool "PMIC8058 adc calibration"
 	help
 	  Support PMIC8058 adc calibration
+
+config SEC_AUDIO_I2S_DRIVING_CURRENT
+	bool "Sec I2S Driving Current"
+	default n
+	help
+	  Support I2S driving current up
 
 endif
