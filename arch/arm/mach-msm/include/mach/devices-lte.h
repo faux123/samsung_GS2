@@ -124,6 +124,10 @@ extern struct platform_device msm_device_rng;
 #else
 #define ANDROID_RNDIS_CONFIG_STRING	 "RNDIS Only (Not debugging mode)"
 #endif
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_RNDIS_FOR_ATT_TEST_COMPOSITE
+#define ANDROID_RNDIS_TEST_CONFIG_STRING	 "RNDIS + ACM (Not debugging mode)"
+#endif
+
 	/* Refered from S1, P1 */
 #define USBSTATUS_UMS				0x0
 #define USBSTATUS_SAMSUNG_KIES 		0x1
@@ -132,7 +136,11 @@ extern struct platform_device msm_device_rng;
 #define USBSTATUS_VTP				0x8
 #define USBSTATUS_ADB				0x10
 #define USBSTATUS_DM				0x20
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_RNDIS_FOR_ATT_TEST_COMPOSITE
+#define USBSTATUS_VTP_TEST			0x40
+#else
 #define USBSTATUS_ACM				0x40
+#endif
 #define USBSTATUS_SAMSUNG_KIES_REAL		0x80
 #define USBSTATUS_RMNET                             0xA0
 

@@ -26,7 +26,9 @@
 #include <linux/freezer.h>
 #include <linux/pm_runtime.h>
 #include <linux/usb/otg.h>
-
+#ifdef CONFIG_USB_HOST_NOTIFY
+#include <linux/host_notify.h>
+#endif
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 
@@ -659,7 +661,11 @@ static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
  */
 static void hub_port_logical_disconnect(struct usb_hub *hub, int port1)
 {
+#ifdef CONFIG_USB_HOST_NOTIFY
+	dev_err(hub->intfdev, "logical disconnect on port %d\n", port1);
+#else
 	dev_dbg(hub->intfdev, "logical disconnect on port %d\n", port1);
+#endif
 	hub_port_disable(hub, port1, 1);
 
 	/* FIXME let caller ask to power down the port:
@@ -1723,6 +1729,10 @@ static inline void announce_device(struct usb_device *udev) { }
 #include "otg_whitelist.h"
 #endif
 
+#ifdef	CONFIG_USB_SEC_WHITELIST
+#include "sec_whitelist.h"
+#endif
+
 /**
  * usb_enumerate_device_otg - FIXME (usbcore-internal)
  * @udev: newly addressed device (in ADDRESS state)
@@ -1732,6 +1742,19 @@ static inline void announce_device(struct usb_device *udev) { }
 static int usb_enumerate_device_otg(struct usb_device *udev)
 {
 	int err = 0;
+
+#ifdef	CONFIG_USB_SEC_WHITELIST
+	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
+	if (hcd->sec_whlist_table_num) {
+		if (!is_seclist(udev, hcd->sec_whlist_table_num)) {
+			err = usb_port_suspend(udev, PMSG_SUSPEND);
+			if (err < 0)
+				dev_dbg(&udev->dev, "usb port suspend fail, %d\n", err);
+			err = -ENOTSUPP;
+			goto sec_fail;
+		}
+	}
+#endif
 
 #ifdef	CONFIG_USB_OTG
 	/*
@@ -1818,6 +1841,10 @@ out:
 		schedule_delayed_work(&udev->bus->hnp_polling,
 			msecs_to_jiffies(THOST_REQ_POLL));
 	}
+#endif
+
+#ifdef	CONFIG_USB_SEC_WHITELIST
+sec_fail:
 #endif
 	return err;
 }
@@ -2905,8 +2932,6 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 			}
 			udev->descriptor.bMaxPacketSize0 =
 					buf->bMaxPacketSize0;
-			kfree(buf);
-
 			/*
 			 * If it is a HSET Test device, we don't issue a
 			 * second reset which results in failure due to
@@ -2924,6 +2949,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 					goto fail;
 				}
 			}
+			kfree(buf);
 			if (r) {
 				dev_err(&udev->dev,
 					"device descriptor read/64, error %d\n",
@@ -3313,6 +3339,12 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 				spin_lock_irq(&device_state_lock);
 				hdev->children[port1-1] = NULL;
 				spin_unlock_irq(&device_state_lock);
+#ifdef CONFIG_USB_HOST_NOTIFY
+				if(hcd->host_notify) {
+					host_state_notify(&hcd->ndev, NOTIFY_HOST_UNKNOWN);
+					hcd->ndev.state = NOTIFY_HOST_NONE;
+				}
+#endif
 			}
 		}
 

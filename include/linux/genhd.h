@@ -120,6 +120,10 @@ struct hd_struct {
 #define GENHD_FL_EXT_DEVT			64 /* allow extended devt */
 #define GENHD_FL_NATIVE_CAPACITY		128
 
+#ifdef CONFIG_USB_HOST_NOTIFY
+#define GENHD_IF_USB	1
+#endif
+
 #define BLK_SCSI_MAX_CMDS	(256)
 #define BLK_SCSI_CMD_PER_LONG	(BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
 
@@ -171,7 +175,10 @@ struct gendisk {
 	struct blk_integrity *integrity;
 #endif
 	int node_id;
+#ifdef CONFIG_USB_HOST_NOTIFY
 	int media_present;
+	int interfaces;
+#endif
 };
 
 static inline struct gendisk *part_to_disk(struct hd_struct *part)

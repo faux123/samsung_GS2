@@ -856,6 +856,7 @@ static int ehci_hub_control (
 	unsigned long	flags;
 	int		retval = 0;
 	unsigned	selector;
+	int             timeo=0;  // add for qualcomm workaround
 
 	/*
 	 * FIXME:  support SetPortFeatures USB_PORT_FEAT_INDICATOR.
@@ -1201,6 +1202,25 @@ static int ehci_hub_control (
 				ehci_vdbg (ehci, "port %d reset\n", wIndex + 1);
 				temp |= PORT_RESET;
 				temp &= ~PORT_PE;
+
+// add for qualcomm workaround [
+				while(timeo !=1000 ){
+					if(!(ehci_readl(ehci, status_reg) & (1<<8))){
+						if(ehci_readl(ehci, status_reg) & 1 || ehci_readl(ehci, status_reg) & (1<<2))
+						{
+							printk("Done resetting LINK \n");
+							break;
+						}
+					}
+					mdelay(1);
+					timeo++;
+				}
+				if(timeo==1000){
+					printk("Error when RESETTING, notify to core hub driver\n");
+					hcd->driver->reset(hcd);
+					hcd->driver->start(hcd);
+				}
+// add for qualcomm workaround ]
 
 				/*
 				 * caller must wait, then call GetPortStatus

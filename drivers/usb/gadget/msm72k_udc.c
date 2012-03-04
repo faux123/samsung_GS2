@@ -1535,8 +1535,9 @@ static void usb_do_work_check_vbus(struct usb_info *ui)
 		ui->flags |= USB_FLAG_VBUS_OFFLINE;
 // for test log	
 	printk(KERN_DEBUG "usb_do_work_check_vbus USB disconnected %x\n",ui->flags);
-//	
+//
 	spin_unlock_irqrestore(&ui->lock, iflags);
+
 }
 
 static void usb_do_work(struct work_struct *w)
@@ -1735,6 +1736,10 @@ static void usb_do_work(struct work_struct *w)
 				usb_reset(ui);
 				ui->state = USB_STATE_ONLINE;
 				usb_do_work_check_vbus(ui);
+// Add for fsa9485 device check (Samsung) [
+				if (ui->flags & USB_FLAG_VBUS_ONLINE)
+					ui->pdata->check_microusb();
+// ]
 				ret = request_irq(otg->irq, usb_interrupt,
 							IRQF_SHARED,
 							ui->pdev->name, ui);

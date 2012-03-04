@@ -59,7 +59,7 @@ enum {
 };
 
 extern void fsa9480_manual_switching(int path);
-extern void fsa9480_otg_detach();
-
+extern void fsa9480_otg_detach(void);
+extern void fsa9480_check_device(void);  // Add for fsa9485 device check (Samsung)
 
 #endif /* _FSA9480_H_ */

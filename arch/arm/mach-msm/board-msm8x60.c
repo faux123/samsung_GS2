@@ -1352,7 +1352,11 @@ static int msm_hsusb_pmic_id_notif_init(void (*callback)(int online), int init)
 					__func__);
 			return ret;
 		}
+		printk("enter otg enable wake lock");
+		enable_irq_wake(PMICID_INT);
 	} else {
+		printk("enter otg disable wake lock");
+		disable_irq_wake(PMICID_INT);
 		free_irq(PMICID_INT, 0);
 		cancel_delayed_work_sync(&pmic_id_det);
 		notify_vbus_state_func_ptr = NULL;
@@ -1626,6 +1630,12 @@ static void msm_hsusb_vbus_power(unsigned phy_info, int on)
 static struct msm_usb_host_platform_data msm_usb_host_pdata = {
 	.phy_info	= (USB_PHY_INTEGRATED | USB_PHY_MODEL_45NM),
 	.power_budget	= 500,   // for samsung otg
+#ifdef CONFIG_USB_HOST_NOTIFY
+	.host_notify = 1,
+#endif
+#ifdef CONFIG_USB_SEC_WHITELIST
+	.sec_whlist_table_num = 1,
+#endif
 };
 #endif
 
@@ -1741,6 +1751,7 @@ static struct msm_otg_platform_data msm_otg_pdata = {
 #ifdef CONFIG_USB_GADGET_MSM_72K
 static struct msm_hsusb_gadget_platform_data msm_gadget_pdata = {
 	.is_phy_status_timer_on = 1,
+	.check_microusb = fsa9480_check_device, // Add for fsa9485 device check (Samsung)
 };
 #endif
 
@@ -1754,6 +1765,13 @@ static char *usb_functions_rndis[] = {
 	"diag",
 #endif
 };
+
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_RNDIS_FOR_ATT_TEST_COMPOSITE
+static char *usb_functions_rndis_test[] = {
+	"rndis",
+	"acm2",
+};
+#endif
 
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 static char *usb_functions_ums[] = {
@@ -2072,6 +2090,28 @@ static struct android_usb_product usb_products[] = {
 		.s		= ANDROID_RNDIS_CONFIG_STRING,
 		.mode		= USBSTATUS_VTP,
 	},
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_RNDIS_FOR_ATT_TEST_COMPOSITE
+	{
+		.product_id = SAMSUNG_RNDIS_PRODUCT_ID,
+		.num_functions	= ARRAY_SIZE(usb_functions_rndis_test),
+		.functions	= usb_functions_rndis_test,
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_RNDIS_WITH_MS_COMPOSITE
+		.bDeviceClass	= 0xEF,
+		.bDeviceSubClass= 0x02,
+		.bDeviceProtocol= 0x01,
+#else
+#ifdef CONFIG_USB_ANDROID_RNDIS_WCEIS
+		.bDeviceClass	= USB_CLASS_WIRELESS_CONTROLLER,
+#else
+		.bDeviceClass	= USB_CLASS_COMM,
+#endif
+		.bDeviceSubClass= 0,
+		.bDeviceProtocol= 0,
+#endif
+		.s		= ANDROID_RNDIS_TEST_CONFIG_STRING,
+		.mode		= USBSTATUS_VTP_TEST,
+	},
+#endif
 	{
 		.product_id = SAMSUNG_DEBUG_PRODUCT_ID,
 		.num_functions	= ARRAY_SIZE(usb_functions_cp_acm_adb),
