@@ -218,6 +218,11 @@ int pm8058_misc_control(struct pm8058_chip *pm_chip, int mask, int flag);
 
 int pm8058_reset_pwr_off(int reset);
 
+#if 1 /* TEST SBA - CN00733593*/ 
+int pm8058_lvs0_ocp_disable(void); 
+int pm8058_lvs0_get_ocp(void); 
+#endif 
+
 void pm8058_show_resume_irq(void);
 
 int pm8058_hard_reset_config(enum pon_config config);

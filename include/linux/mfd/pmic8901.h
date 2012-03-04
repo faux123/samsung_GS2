@@ -80,6 +80,10 @@ int pm8901_irq_get_rt_status(struct pm8901_chip *pm_chip, int irq);
 
 int pm8901_reset_pwr_off(int reset);
 
+// kmj_el15.pm8901_patch
+int pm8901_preload_dVdd(void);
+int pm8901_is_old_PCB_with_PM8901(void);
+
 #if defined (CONFIG_USA_MODEL_SGH_I727)
 int pm8901_smps3_get_voltage(void);
 #endif

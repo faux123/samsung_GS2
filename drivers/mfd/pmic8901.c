@@ -23,6 +23,7 @@
 #include <linux/mfd/pmic8901.h>
 #include <linux/platform_device.h>
 #include <linux/debugfs.h>
+#include <linux/delay.h>
 
 /* PMIC8901 Revision */
 #define SSBI_REG_REV			0x002  /* PMIC4 revision */
@@ -103,6 +104,9 @@ static struct pm8901_dbg_device *pmic_dbg_device;
 
 static struct pm8901_chip *pmic_chip;
 
+// kmj_el15.pm8901_patch
+extern unsigned int get_hw_rev(void);
+
 /* Helper Functions */
 DEFINE_RATELIMIT_STATE(pm8901_msg_ratelimit, 60 * HZ, 10);
 
@@ -175,6 +179,38 @@ int pm8901_write(struct pm8901_chip *chip, u16 addr, u8 *values,
 }
 EXPORT_SYMBOL(pm8901_write);
 
+
+// kmj_el15.pm8901_patch
+int pm8901_preload_dVdd(void)
+{
+	int rc;
+	u8 reg;
+
+	if (pmic_chip == NULL) {
+		pr_err("%s: Error: PMIC 8901 driver has not probed\n",
+			__func__);
+		return -ENODEV;
+	}
+
+	reg = 0x0F;
+	rc = ssbi_write(pmic_chip->dev, 0x0BD, &reg, 1);
+	if (rc)
+		pr_err("%s: ssbi_write failed for 0x0BD, rc=%d\n", __func__,
+			rc);
+
+	reg = 0xB4;
+	rc = ssbi_write(pmic_chip->dev, 0x001, &reg, 1);
+	if (rc)
+		pr_err("%s: ssbi_write failed for 0x001, rc=%d\n", __func__,
+			rc);
+
+	pr_info("%s: dVdd preloaded\n", __func__);
+
+	return rc;
+}
+EXPORT_SYMBOL(pm8901_preload_dVdd);
+
+
 int pm8901_irq_get_rt_status(struct pm8901_chip *chip, int irq)
 {
 	int     rc;
@@ -241,8 +277,8 @@ int pm8901_reset_pwr_off(int reset)
 
 			pmr &= ~REGULATOR_PMR_STATE_MASK;
 			pmr |= REGULATOR_PMR_STATE_OFF;
-
 			rc = ssbi_write(pmic_chip->dev, pmr_addr[i], &pmr, 1);
+			mdelay(4); /* 4ms delay between regulator turn Off  */
 			if (rc) {
 				pr_err("%s: FAIL ssbi_write(0x%x)=0x%x: rc=%d"
 				       "\n", __func__, pmr_addr[i], pmr, rc);
@@ -665,6 +701,88 @@ bail_out:
 	return IRQ_HANDLED;
 }
 
+// kmj_el15.pm8901_patch
+int pm8901_is_old_PCB_with_PM8901(void)
+{
+        int rev;
+        unsigned char retval=0;
+
+        rev = get_hw_rev();
+        
+#if defined(CONFIG_KOR_MODEL_SHV_E110S)
+        if( rev <= 8 )
+                retval = 1;
+        else if( rev >=9 )
+                retval = 0;
+#elif defined(CONFIG_KOR_MODEL_SHV_E120S)
+        if( rev <= 10 )
+                retval = 1;
+        else if( rev >=11 )
+                retval = 0;
+
+#elif defined(CONFIG_KOR_MODEL_SHV_E120K)
+        if( rev <= 10 )
+                retval = 1;
+        else if( rev >=12 )
+                retval = 0;
+#elif defined(CONFIG_KOR_MODEL_SHV_E120L)
+        if( rev <= 6 )
+                retval = 1;
+        else if( rev >=7 )
+                retval = 0;                
+#elif defined(CONFIG_KOR_MODEL_SHV_E160S)
+        if( rev <= 10 )
+                retval = 1;
+        else if( rev >=11 )
+                retval = 0;
+
+#elif defined(CONFIG_KOR_MODEL_SHV_E160K)
+        if( rev <= 10 )
+                retval = 1;
+        else if( rev >=11 )
+                retval = 0;
+#elif defined(CONFIG_KOR_MODEL_SHV_E160L)
+        // TODO: change condition for 160L
+        if( rev <= 9 )
+                retval = 1;
+        else if( rev >=10 )
+                retval = 0;
+#elif defined(CONFIG_JPN_MODEL_SC_05D)
+        if( rev <= 3 )
+                retval = 1;
+        else if( rev >=4 )
+                retval = 0;
+#elif defined (CONFIG_USA_MODEL_SGH_I717)
+        if( rev <= 9 )
+                retval = 1;
+        else if( rev >=10 )
+                retval = 0;
+#elif defined (CONFIG_USA_MODEL_SGH_I757)
+        if( rev <= 7 )
+                retval = 1;
+        else if( rev >=8 )
+                retval = 0;
+#elif defined (CONFIG_USA_MODEL_SGH_T769)
+        if( rev <= 19 )
+                retval = 1;
+        else if( rev >=20 )
+                retval = 0;
+#elif defined(CONFIG_USA_MODEL_SGH_I577)
+        if( rev <= 4 )
+                retval = 1;
+        else if( rev >=5 )
+                retval = 0;
+#elif defined(CONFIG_USA_MODEL_SGH_I727)
+        if( rev <= 13 )
+                retval = 1;
+        else if( rev >=14 )
+                retval = 0;
+#endif
+        return retval;
+        
+
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 static int check_addr(int addr, const char *func_name)
@@ -898,6 +1016,19 @@ static int pm8901_probe(struct i2c_client *client,
 
 	pmic_chip = chip;
 	spin_lock_init(&chip->pm_lock);
+
+        // kmj_el15.pm8901_patch
+        // This api is s/w workaround for PM8901's abnormal spike which could
+        // cause DDR problem on PCB. Because of the spike SS made new PCB for
+        // h/w workaround. This s/w workaround is for old PCBs. And If a target
+        // is new PCB,  you should call a api to drop bypass voltage
+        // to 1.725 originally. But you don't need that here, bacause you've done
+        // that already at SBL3. So instead of calling api to drop bypass voltage 
+        // here you just need to check if SBL3 bootloader includes the api.
+        // In other words this api has dependency with SBL3 change
+        if( pm8901_is_old_PCB_with_PM8901()==1 )
+                pm8901_preload_dVdd();
+	
 
 	/* Register for all reserved IRQs */
 	for (i = pdata->irq_base; i < (pdata->irq_base + MAX_PM_IRQ); i++) {
