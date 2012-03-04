@@ -78,7 +78,11 @@ enum msm_tlmm_register {
 	SDC4_HDRV_PULL_CTL = 0x20a0,
 	SDC3_HDRV_PULL_CTL = 0x20a4,
 };
-
+#ifdef CONFIG_SEC_AUDIO_I2S_DRIVING_CURRENT
+enum msm_tlmm_Spkr_Hdrv_register {
+	CODEC_SPKR_HDRV_PULL_CTL = 0x20a8,
+};
+#endif
 struct tlmm_field_cfg {
 	enum msm_tlmm_register reg;
 	u8                     off;
@@ -99,6 +103,17 @@ static const struct tlmm_field_cfg tlmm_pull_cfgs[] = {
 	{SDC3_HDRV_PULL_CTL, 11}, /* TLMM_PULL_SDC3_CMD  */
 	{SDC3_HDRV_PULL_CTL, 9},  /* TLMM_PULL_SDC3_DATA */
 };
+#ifdef CONFIG_SEC_AUDIO_I2S_DRIVING_CURRENT
+static const struct tlmm_field_cfg tlmm_codec_spkr_hdrv_cfgs[] = {
+	{CODEC_SPKR_HDRV_PULL_CTL,6}, /*CODEC_SPKR_SCK_HDRV */
+	{CODEC_SPKR_HDRV_PULL_CTL,3}, /*CODEC_SPKR_WS_HDRV */
+	{CODEC_SPKR_HDRV_PULL_CTL,0}, /*CODEC_SPKR_DOUT_HDRV */
+};
+static const struct tlmm_field_cfg tlmm_codec_spkr_pull_cfgs[] = {
+	{CODEC_SPKR_HDRV_PULL_CTL,11}, /*CODEC_SPKR_SCK_PULL */
+	{CODEC_SPKR_HDRV_PULL_CTL,9}, /*CODEC_SPKR_WS_PULL */
+};
+#endif
 
 /*
  * When a GPIO triggers, two separate decisions are made, controlled
@@ -416,8 +431,14 @@ static irqreturn_t msm_summary_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#define WAKE_UP_INT_0_SU         (MSM_TLMM_BASE + 0x840)
+#define WAKE_UP_INT_1_SU         (MSM_TLMM_BASE + 0x844)
+#define WAKE_UP_GPIO_123  17
+
 static int msm_gpio_irq_set_wake(unsigned int irq, unsigned int on)
 {
+    unsigned int wake_up_0_su = 0;
+    unsigned int wake_up_1_su = 0;
 	int gpio = msm_irq_to_gpio(&msm_gpio.gpio_chip, irq);
 
 	if (on) {
@@ -433,6 +454,14 @@ static int msm_gpio_irq_set_wake(unsigned int irq, unsigned int on)
 #ifdef CONFIG_MSM_RPM
 	msm_mpm_set_irq_wake(irq, on);
 #endif
+
+    if(gpio == 123)
+    {
+        wake_up_1_su = readl(WAKE_UP_INT_1_SU);
+        wake_up_1_su |= (1 << WAKE_UP_GPIO_123);
+        writel(wake_up_1_su,WAKE_UP_INT_1_SU);
+        //printk("########### wake0 = 0x%x, wake1 = 0x%x\n", readl(WAKE_UP_INT_0_SU),readl(WAKE_UP_INT_1_SU)); 
+    }
 	return 0;
 }
 
@@ -624,7 +653,19 @@ void msm_tlmm_set_pull(enum msm_tlmm_pull_tgt tgt, int pull)
 	msm_tlmm_set_field(tlmm_pull_cfgs, tgt, 2, pull);
 }
 EXPORT_SYMBOL(msm_tlmm_set_pull);
+#ifdef CONFIG_SEC_AUDIO_I2S_DRIVING_CURRENT
+void msm_tlmm_set_spkr_hdrive(enum msm_tlmm_spkr_hdrive_tgt tgt, int drv_str)
+{
+	msm_tlmm_set_field(tlmm_codec_spkr_hdrv_cfgs, tgt, 3, drv_str);
+}
+EXPORT_SYMBOL(msm_tlmm_set_spkr_hdrive);
 
+void msm_tlmm_set_spkr_pull(enum msm_tlmm_spkr_pull_tgt tgt, int drv_str)
+{
+	msm_tlmm_set_field(tlmm_codec_spkr_pull_cfgs, tgt, 2, drv_str);
+}
+EXPORT_SYMBOL(msm_tlmm_set_spkr_pull);
+#endif
 int gpio_tlmm_config(unsigned config, unsigned disable)
 {
 	uint32_t flags;

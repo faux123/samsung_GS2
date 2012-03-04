@@ -133,4 +133,6 @@ static inline int irq_to_gpio(unsigned irq)
 
 #endif
 
+void msm_gpio_sleep_log(unsigned int factory_on);
+
 #endif /* __LINUX_GPIO_H */
