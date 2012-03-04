@@ -1030,6 +1030,82 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 		       sizeof(pvt_data->event.event_type));
 	}
 		/* These are what external supplicant/authenticator wants */
+#if defined(BCMCCX) && defined(BCMDBG_EVENT)
+		case WLC_E_PRUNE:
+			{
+#define WLC_E_PRUNE_CCXFAST_PREVAP	11	/* CCX FAST ROAM: prune previous AP */
+#define WLC_E_PRUNE_CCXFAST_DROAM	14	/* CCX FAST ROAM: prune unqualified AP */
+#define WLC_E_PRUNE_QBSS_LOAD		16	/* QBSS LOAD - AAC is too low */
+#define WLC_E_PRUNE_AP_BLOCKED		18	/* prune blocked AP */
+#define WLC_E_PRUNE_NO_DIAG_SUPPORT	19	/* prune due to diagnostic mode not supported */
+				uint reason;
+				char eabuf[ETHER_ADDR_STR_LEN];
+				reason = ntoh32_ua((void *)&event->reason);
+				sprintf(eabuf, "%02x:%02x:%02x:%02x:%02x:%02x",
+				        (uchar)event->addr.octet[0]&0xff,
+				        (uchar)event->addr.octet[1]&0xff,
+				        (uchar)event->addr.octet[2]&0xff,
+				        (uchar)event->addr.octet[3]&0xff,
+				        (uchar)event->addr.octet[4]&0xff,
+				        (uchar)event->addr.octet[5]&0xff);
+
+				switch(reason) {
+					case WLC_E_PRUNE_CCXFAST_PREVAP:
+						DHD_ERROR(("PRUNE %s: PRUNE: WLC_E_PRUNE_CCXFAST_PREVAP\n", eabuf));
+						break;
+					case WLC_E_PRUNE_CCXFAST_DROAM:
+						DHD_ERROR(("PRUNE %s: PRUNE: WLC_E_PRUNE_CCXFAST_DROAM\n", eabuf));
+						break;
+					case WLC_E_PRUNE_QBSS_LOAD:
+						DHD_ERROR(("PRUNE %s: PRUNE: WLC_E_PRUNE_QBSS_LOAD\n", eabuf));
+						break;
+					case WLC_E_PRUNE_AP_BLOCKED:
+						DHD_ERROR(("PRUNE %s: PRUNE: WLC_E_PRUNE_AP_BLOCKED\n", eabuf));
+						break;
+					case WLC_E_PRUNE_NO_DIAG_SUPPORT:
+						DHD_ERROR(("PRUNE %s: PRUNE: WLC_E_PRUNE_NO_DIAG_SUPPORT\n", eabuf));
+						break;
+					default:
+						DHD_ERROR(("PRUNE %s: status %d, reason %d\n",
+						           eabuf, status, reason));
+						break;
+				}
+				break;
+			}
+		case WLC_E_ADDTS_IND:
+			{
+				uint reason;
+				char eabuf[ETHER_ADDR_STR_LEN];
+				reason = ntoh32_ua((void *)&event->reason);
+				sprintf(eabuf, "%02x:%02x:%02x:%02x:%02x:%02x",
+				        (uchar)event->addr.octet[0]&0xff,
+				        (uchar)event->addr.octet[1]&0xff,
+				        (uchar)event->addr.octet[2]&0xff,
+				        (uchar)event->addr.octet[3]&0xff,
+				        (uchar)event->addr.octet[4]&0xff,
+				        (uchar)event->addr.octet[5]&0xff);
+				DHD_ERROR(("Junlim WLC_E_ADDTS_IND %s: status %d, reason %d\n",
+				           eabuf, status, reason));
+			}
+			break;
+		case WLC_E_DELTS_IND:
+			{
+				uint reason;
+				char eabuf[ETHER_ADDR_STR_LEN];
+				reason = ntoh32_ua((void *)&event->reason);
+				sprintf(eabuf, "%02x:%02x:%02x:%02x:%02x:%02x",
+				        (uchar)event->addr.octet[0]&0xff,
+				        (uchar)event->addr.octet[1]&0xff,
+				        (uchar)event->addr.octet[2]&0xff,
+				        (uchar)event->addr.octet[3]&0xff,
+				        (uchar)event->addr.octet[4]&0xff,
+				        (uchar)event->addr.octet[5]&0xff);
+				DHD_ERROR(("Junlim WLC_E_DELTS_IND %s: status %d, reason %d\n",
+				           eabuf, status, reason));
+			}
+			break;
+#endif /* defined(BCMCCX) && defined(BCMDBG_EVENT) */		
+
 		/* fall through */
 		case WLC_E_LINK:
 		case WLC_E_DEAUTH:
@@ -1340,6 +1416,7 @@ fail:
 		MFREE(dhd->osh, buf, BUF_SIZE);
 }
 
+#ifdef ARP_OFFLOAD_SUPPORT
 void
 dhd_arp_offload_set(dhd_pub_t * dhd, int arp_mode)
 {
@@ -1373,6 +1450,53 @@ dhd_arp_offload_enable(dhd_pub_t * dhd, int arp_enable)
 		DHD_TRACE(("%s: successfully enabed ARP offload to %d\n",
 		__FUNCTION__, arp_enable));
 }
+
+void
+dhd_aoe_arp_clr(dhd_pub_t *dhd)
+{
+	int ret = 0;
+	int iov_len = 0;
+	char iovbuf[128];
+
+	if (dhd == NULL) return;
+
+	iov_len = bcm_mkiovar("arp_table_clear", 0, 0, iovbuf, sizeof(iovbuf));
+	if ((ret  = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iov_len, TRUE, 0) < 0))
+		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
+}
+
+void
+dhd_aoe_hostip_clr(dhd_pub_t *dhd)
+{
+	int ret = 0;
+	int iov_len = 0;
+	char iovbuf[128];
+
+	if (dhd == NULL) return;
+
+	iov_len = bcm_mkiovar("arp_hostip_clear", 0, 0, iovbuf, sizeof(iovbuf));
+	if ((ret  = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iov_len, TRUE, 0)) < 0)
+		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
+}
+
+void
+dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr)
+{
+	int iov_len = 0;
+	char iovbuf[32];
+	int retcode;
+
+	iov_len = bcm_mkiovar("arp_hostip", (char *)&ipaddr, 4, iovbuf, sizeof(iovbuf));
+	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iov_len, TRUE, 0);
+
+	if (retcode)
+		DHD_TRACE(("%s: ARP ip addr add failed, retcode = %d\n",
+		__FUNCTION__, retcode));
+	else
+		DHD_TRACE(("%s: sARP H ipaddr entry added \n",
+		__FUNCTION__));
+}
+#endif /* ARP_OFFLOAD_SUPPORT  */
 
 /* send up locally generated event */
 void

@@ -997,6 +997,8 @@ dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 			ASSERT(((uintptr)frame % DHD_SDALIGN) == 0);
 			pad = 0;
 		} else {
+			if ((int)frame & 1)
+				pad--;
 			PKTPUSH(osh, pkt, pad);
 			frame = (uint8*)PKTDATA(osh, pkt);
 
@@ -5167,7 +5169,7 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 	sd1idle = TRUE;
 	dhd_readahead = TRUE;
 	retrydata = FALSE;
-	dhd_doflow = TRUE;
+	dhd_doflow = FALSE;
 	dhd_dongle_memsize = 0;
 	dhd_txminmax = DHD_TXMINMAX;
 
