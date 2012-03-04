@@ -97,7 +97,7 @@
 #define MXT224_AUTOCAL_WAIT_TIME		2000
 
 
-#define T48_CALCFG_TA     0x50
+#define T48_CALCFG_TA     0x52
 #define	T48_CALCFG                0x40
 
 #define CPURATE_FOR_TOUCH_BOOSTER		1512000
@@ -214,7 +214,9 @@ static int palm_chk_flag;
 static bool auto_cal_flag; /* 1: enabled,0: disabled*/
 static bool ta_status_pre = 0;
 static unsigned char is_inputmethod = 0;
-
+#ifdef CLEAR_MEDIAN_FILTER_ERROR
+static t48_median_config_t noise_median = {0}; //110927 gumi noise
+#endif
 
 /* Below is used for clearing ghost touch or for checking to system reboot.  by Xtopher */
 static int t48_jump_limit = 0;
@@ -479,6 +481,7 @@ static void mxt224_ta_probe(int ta_status)
 	u8 calcfg_en;
 	u16 i;
 	u8 size;	
+	u8 active_depth;
 
 	printk(KERN_ERR"[TSP] mxt224_ta_probe \n");
 	if (!mxt224_enabled) {
@@ -495,8 +498,10 @@ static void mxt224_ta_probe(int ta_status)
 		noise_threshold = 40;
 		movfilter = 46;
 		blen = 16;
+		active_depth = 38;		
 		#ifdef CLEAR_MEDIAN_FILTER_ERROR
 		gErrCondition =  ERR_RTN_CONDITION_MAX;
+		noise_median.mferr_setting = false;
 		#endif
 
 		
@@ -511,41 +516,17 @@ static void mxt224_ta_probe(int ta_status)
 		noise_threshold = 30;
 		movfilter = 11;		
 		blen = 32;		
+		active_depth = 32;
 		#ifdef CLEAR_MEDIAN_FILTER_ERROR
 		gErrCondition =  ERR_RTN_CONDITION_IDLE;
+		noise_median.mferr_count=0;
+		noise_median.mferr_setting = false;
+		noise_median.median_on_flag = false;
 		#endif
 
-		
 	}
 	
 	if (copy_data->family_id==0x81) {
-		/*ret = get_object_info(copy_data, TOUCH_MULTITOUCHSCREEN_T9, &size_one, &obj_address);
-		size_one = 1;
-		value = (u8)threshold_e;
-		write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
-		read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
-		printk(KERN_ERR"[TSP]TA_probe MXT224E T%d Byte%d is %d\n", 9, register_address, val);
-
-		value = (u8)blen;
-		register_address=6;		
-		write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
-		read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
-		printk(KERN_ERR"[TSP]TA_probe MXT224E T%d Byte%d is %d\n", 9, register_address, val);	
-
-		value = (u8)movfilter;
-		register_address=13;		
-		write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
-		read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
-		printk(KERN_ERR"[TSP]TA_probe MXT224E T%d Byte%d is %d\n", 9, register_address, val);		
-		
-		value = calcfg;
-		register_address=2;
-		ret = get_object_info(copy_data, PROCG_NOISESUPPRESSION_T48, &size_one, &obj_address);
-		size_one = 1;
-		write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
-		read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
-		printk(KERN_ERR"[TSP]TA_probe MXT224E T%d Byte%d is %d\n",48,register_address,val);*/
-		
 		#ifdef CLEAR_MEDIAN_FILTER_ERROR
 		if(!ta_status)
 		{
@@ -563,8 +544,15 @@ static void mxt224_ta_probe(int ta_status)
 			value = 46;
 			register_address=13;
 			write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
+
+			value = 3;
+			write_mem(copy_data, obj_address+34, 1, &value); 
 		}
 		#endif
+
+		value = active_depth; 
+		ret = get_object_info(copy_data, SPT_CTECONFIG_T46, &size_one, &obj_address);
+		write_mem(copy_data, obj_address+3, 1, &value);
 
 		
 		ret = get_object_info(copy_data, GEN_ACQUISITIONCONFIG_T8, &size_one, &obj_address);
@@ -587,8 +575,8 @@ static void mxt224_ta_probe(int ta_status)
 	    size = size_one;
 		size_one = 1;
 		write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
-		read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
-		printk(KERN_ERR"[TSP]TA_probe MXT224E T%d Byte%d is %d\n",48,register_address,val);
+//		read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
+//		printk(KERN_ERR"[TSP]TA_probe MXT224E T%d Byte%d is %d\n",48,register_address,val);
 		
 		if (ta_status)
 		write_config(copy_data, PROCG_NOISESUPPRESSION_T48, copy_data->noise_suppression_cfg_ta);
@@ -607,14 +595,14 @@ static void mxt224_ta_probe(int ta_status)
 			ret = get_object_info(copy_data, PROCG_NOISESUPPRESSION_T48, &size_one, &obj_address);
 			size_one = 1;
 			write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
-			read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
-			printk(KERN_ERR"[TSP]TA_probe MXT224E T%d Byte%d is %d\n",48,register_address,val);
+//			read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
+//			printk(KERN_ERR"[TSP]TA_probe MXT224E T%d Byte%d is %d\n",48,register_address,val);
 			
 			value = t48_mrgthr;
 			register_address=42;
 			write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
-			read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
-			printk(KERN_ERR"[TSP]TA_probe MXT224E T%d Byte%d is %d\n",48,register_address,val);
+//			read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
+//			printk(KERN_ERR"[TSP]TA_probe MXT224E T%d Byte%d is %d\n",48,register_address,val);
 		}
 		
 		/*for (i = 0; i < size; i++) {
@@ -632,16 +620,16 @@ static void mxt224_ta_probe(int ta_status)
 		value = (u8)movfilter;
 		register_address=13;		
 		write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
-		read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
-		printk(KERN_ERR"[TSP]TA_probe MXT224 T%d Byte%d is %d\n", 9, register_address, val);
+//		read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
+//		printk(KERN_ERR"[TSP]TA_probe MXT224 T%d Byte%d is %d\n", 9, register_address, val);
 
 		value = noise_threshold;
 		register_address = 8;
 		ret = get_object_info(copy_data, PROCG_NOISESUPPRESSION_T22, &size_one, &obj_address);
 		size_one = 1;
 		write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
-		read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
-		printk(KERN_ERR"[TSP]TA_probe MXT224 T%d Byte%d is %d\n", 22, register_address, val);		
+//		read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
+//		printk(KERN_ERR"[TSP]TA_probe MXT224 T%d Byte%d is %d\n", 22, register_address, val);		
 
 		if(is_inputmethod == 1)   /* T48 Config change for TA connection */
 		{
@@ -650,29 +638,29 @@ static void mxt224_ta_probe(int ta_status)
 			value = (u8)t48_mrgthr;
 			size_one = 1;
 			write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
-			read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
-			printk(KERN_ERR "T%d Byte%d is %d\n", 9, register_address, val);
+//			read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
+//			printk(KERN_ERR "T%d Byte%d is %d\n", 9, register_address, val);
 			
 			register_address = 30;				
 			value = (u8)t48_jump_limit;
 			size_one = 1;
 			write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
-			read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
-			printk(KERN_ERR "T%d Byte%d is %d\n", 9, register_address, val);
+//			read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
+//			printk(KERN_ERR "T%d Byte%d is %d\n", 9, register_address, val);
 
 			value = t48_jump_limit;
 			register_address=51;
 			ret = get_object_info(copy_data, PROCG_NOISESUPPRESSION_T48, &size_one, &obj_address);
 			size_one = 1;
 			write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
-			read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
-			printk(KERN_ERR"[TSP] MXT224E T%d Byte%d is %d\n",48,register_address,val);
+//			read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
+//			printk(KERN_ERR"[TSP] MXT224E T%d Byte%d is %d\n",48,register_address,val);
 			
 			value = t48_mrgthr;
 			register_address=42;
 			write_mem(copy_data, obj_address+(u16)register_address, size_one, &value);
-			read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
-			printk(KERN_ERR"[TSP] MXT224E T%d Byte%d is %d\n",48,register_address,val);
+//			read_mem(copy_data, obj_address+(u16)register_address, (u8)size_one, &val);
+//			printk(KERN_ERR"[TSP] MXT224E T%d Byte%d is %d\n",48,register_address,val);
 		}
 
 	}
@@ -1442,22 +1430,16 @@ void palm_recovery(void)
 
 
 #ifdef CLEAR_MEDIAN_FILTER_ERROR
-ERR_RTN_CONTIOIN Check_Err_Condition(bool ta)
+ERR_RTN_CONTIOIN Check_Err_Condition(void)
 {
 	ERR_RTN_CONTIOIN rtn;
 
-	if(ta)
-	{
-		rtn = ERR_RTN_CONDITION_MAX;
-	}
-	else
-	{
 		switch(gErrCondition)
 		{
 			case ERR_RTN_CONDITION_IDLE:
 				rtn = ERR_RTN_CONDITION_T9;
 				break;
-
+#if 0
 			case ERR_RTN_CONDITION_T9:
 				rtn = ERR_RTN_CONDITION_T48;
 				break;
@@ -1465,10 +1447,170 @@ ERR_RTN_CONTIOIN Check_Err_Condition(bool ta)
 			case ERR_RTN_CONDITION_T48:
 				rtn = ERR_RTN_CONDITION_IDLE;
 				break;
+#endif
 		}
-	}
 	return rtn;
 }
+
+
+//110926 zero charger & palne noise apply
+static int median_err_setting(void)
+{
+	u16 obj_address;
+	u8 size_one;
+	u8 value, state;
+	bool ta_status_check;
+	int ret = 0;
+
+	copy_data->read_ta_status(&ta_status_check);
+	if(!ta_status_check)
+	{
+		gErrCondition = Check_Err_Condition();
+			
+		switch(gErrCondition)
+		{
+			case ERR_RTN_CONDITION_T9:
+			{
+				ret = get_object_info(copy_data, TOUCH_MULTITOUCHSCREEN_T9, &size_one, &obj_address);
+				value = 16;
+				write_mem(copy_data, obj_address+6, 1, &value);
+				value = 40;
+				write_mem(copy_data, obj_address+7, 1, &value);
+				value = 80;
+				write_mem(copy_data, obj_address+13, 1, &value);
+				ret = get_object_info(copy_data, SPT_CTECONFIG_T46, &size_one, &obj_address);
+				value = 32;
+				write_mem(copy_data, obj_address+3, 1, &value);
+				ret = get_object_info(copy_data, PROCG_NOISESUPPRESSION_T48, &size_one, &obj_address);
+				value = 29;
+				write_mem(copy_data, obj_address+3, 1, &value);
+				value = 1;
+				write_mem(copy_data, obj_address+8, 1, &value);
+				value = 2;
+				write_mem(copy_data, obj_address+9, 1, &value);
+				value = 100;
+				write_mem(copy_data, obj_address+17, 1, &value);
+				value = 64;
+				write_mem(copy_data, obj_address+19, 1, &value);
+				value = 20;
+				write_mem(copy_data, obj_address+22, 1, &value);
+				value = 38;
+				write_mem(copy_data, obj_address+25, 1, &value);
+				value = 16;
+				write_mem(copy_data, obj_address+34, 1, &value);
+				value = 40;
+				write_mem(copy_data, obj_address+35, 1, &value);
+				value = 80;
+				write_mem(copy_data, obj_address+39, 1, &value);
+			}
+				break;
+#if 0
+			case ERR_RTN_CONDITION_T48:
+			{
+				ret = get_object_info(copy_data, PROCG_NOISESUPPRESSION_T48, &size_one, &obj_address);
+				value = 29;
+				write_mem(copy_data, obj_address+3, 1, &value); 
+			}
+				break;
+		
+			case ERR_RTN_CONDITION_IDLE:
+			{
+				ret = get_object_info(copy_data, TOUCH_MULTITOUCHSCREEN_T9, &size_one, &obj_address);
+				value = 32;
+				write_mem(copy_data, obj_address+6, 1, &value);
+				value = 50;
+				write_mem(copy_data, obj_address+7, 1, &value);
+				value = 46;
+				write_mem(copy_data, obj_address+13, 1, &value);
+				ret = get_object_info(copy_data, PROCG_NOISESUPPRESSION_T48, &size_one, &obj_address);
+				value = 0;
+				write_mem(copy_data, obj_address+3, 1, &value); 
+			}
+			break;
+#endif
+		}
+#if 0
+		ret = get_object_info(copy_data, PROCG_NOISESUPPRESSION_T48, &size_one, &obj_address);
+		read_mem(copy_data, obj_address+2, 1, &value);
+		printk(KERN_ERR"[TSP]TA_probe MXT224E T%d Byte%d is %d\n",48,2,value);
+		value = value & 0xDF;
+		write_mem(copy_data, obj_address+2, 1, &value);
+		mdelay(5);
+		value = value | 0x20;
+		write_mem(copy_data, obj_address+2, 1, &value);
+#endif
+	}
+	else
+	{
+/*
+	  get_object_info(copy_data, SPT_USERDATA_T38, &size_one, &obj_address);
+	  read_mem(copy_data, obj_address+1, 1, &value);
+	  printk(KERN_ERR"[TSP]info value is %d\n",value);
+*/	
+	  value= 1;
+	  if(noise_median.mferr_count < 3)
+	   noise_median.mferr_count++;
+	  if (!(noise_median.mferr_count%value)&&(noise_median.mferr_count < 3)) //3 
+	  {
+	   printk(KERN_DEBUG"[TSP] median thr noise level too high. %d\n", noise_median.mferr_count/value);
+	   state= noise_median.mferr_count/value;
+/*	   
+	   get_object_info(copy_data, SPT_USERDATA_T38, &size_one, &obj_address);
+	   read_mem(copy_data, obj_address+2, 1, & noise_median.t48_mfinvlddiffthr_for_mferr);
+	   printk(KERN_ERR"[TSP]mfinvlddiffthr value is %d\n", noise_median.t48_mfinvlddiffthr_for_mferr);
+	   read_mem(copy_data, obj_address+3, 1, & noise_median.t48_mferrorthr_for_mferr);
+	   printk(KERN_ERR"[TSP]mferrorthr value is %d\n",noise_median.t48_mferrorthr_for_mferr);
+	   read_mem(copy_data, obj_address+4, 1, &noise_median.t46_actvsyncsperx_for_mferr);
+	   printk(KERN_ERR"[TSP]actvsyncsperx value is %d\n",noise_median.t46_actvsyncsperx_for_mferr);
+	   read_mem(copy_data, obj_address+5, 1, &noise_median.t48_thr_for_mferr);
+	   printk(KERN_ERR"[TSP]t48_thr_for_mferr value is %d\n",noise_median.t48_thr_for_mferr);
+	   read_mem(copy_data, obj_address+6, 1, &noise_median.t48_movfilter_for_mferr);
+	   printk(KERN_ERR"[TSP]t48_movfilter_for_mferr value is %d\n",noise_median.t48_movfilter_for_mferr);
+*/	   
+	   get_object_info(copy_data, PROCG_NOISESUPPRESSION_T48, &size_one, &obj_address);
+	   
+	   if(state == 1)
+	   {
+		value = noise_median.t48_mfinvlddiffthr_for_mferr;
+		write_mem(copy_data, obj_address+22, 1, &value);
+		value = noise_median.t48_mferrorthr_for_mferr; 
+		write_mem(copy_data, obj_address+25, 1, &value);
+		value = noise_median.t48_thr_for_mferr;
+		write_mem(copy_data, obj_address+35, 1, &value);
+		value = noise_median.t48_movfilter_for_mferr;
+		write_mem(copy_data, obj_address+39, 1, &value);
+		get_object_info(copy_data, SPT_CTECONFIG_T46, &size_one, &obj_address);
+		value = noise_median.t46_actvsyncsperx_for_mferr;
+		write_mem(copy_data, obj_address+3, 1, &value); }
+	   else if(state >= 2)
+	   {
+		value = 10; //basefreq
+		write_mem(copy_data, obj_address+3, 1, &value);
+		value = 0; //secondmf
+		write_mem(copy_data, obj_address+8, 1, &value);
+		value = 0; //thirdmf
+		write_mem(copy_data, obj_address+9, 1, &value);
+		value = 20; //mfinvlddiffthr
+		write_mem(copy_data, obj_address+22, 1, &value);
+		value = 38; //mferrorthr
+		write_mem(copy_data, obj_address+25, 1, &value);
+		value = 45; //thr
+		write_mem(copy_data, obj_address+35, 1, &value);
+		value = 65; //movfilter
+		write_mem(copy_data, obj_address+39, 1, &value);
+		get_object_info(copy_data, SPT_CTECONFIG_T46, &size_one, &obj_address);
+		value = 63; //actvsyncsperx
+		write_mem(copy_data, obj_address+3, 1, &value);
+	   }
+	  }
+	 }
+   noise_median.mferr_setting = true;
+	
+
+}
+
+
+
 #endif
 
 static irqreturn_t mxt224_irq_thread(int irq, void *ptr)
@@ -1517,6 +1659,12 @@ static irqreturn_t mxt224_irq_thread(int irq, void *ptr)
 				palm_recovery();
 				cal_check_flag = 1u;
 			}
+			else if(cal_check_flag == 1)
+			{
+				qt_timer_state=0;
+	                	qt_time_point = jiffies_to_msecs(jiffies);
+			}
+				
 			}
 
 		if (msg[0] == 14) { /* Palm release */
@@ -1530,100 +1678,31 @@ static irqreturn_t mxt224_irq_thread(int irq, void *ptr)
 			}
 		}
 
-		if (msg[0] == 0xf) { /* freq error release */
+		if ((msg[0] == 0xf)&& (data->family_id==0x80)) { /* freq error release */
 			printk(KERN_ERR"[TSP] Starting irq with 0x%2x, 0x%2x, 0x%2x, 0x%2x, 0x%2x, 0x%2x, 0x%2x, 0x%2x", msg[0], msg[1], msg[2], msg[3], msg[4], msg[5], msg[6], msg[7]);
 			if ((msg[1]&0x08) == 0x08)
 				calibrate_chip();
 		}
 		
 		#ifdef CLEAR_MEDIAN_FILTER_ERROR
-		if((msg[0] == 18) && (data->family_id==0x81)){
+		if((msg[0] == 18) && (data->family_id==0x81))
+		{
+			//printk(KERN_ERR"[TSP] Starting irq with 0x%2x, 0x%2x, 0x%2x, 0x%2x, 0x%2x, 0x%2x, 0x%2x, 0x%2x", msg[0], msg[1], msg[2], msg[3], msg[4], msg[5], msg[6], msg[7]);
 			if((msg[4]&0x5) == 0x5){
 				printk(KERN_ERR"[TSP] median filter state error!!!\n");
-
-					data->read_ta_status(&ta_status);
-
-				
-				gErrCondition = Check_Err_Condition(ta_status);
-
-				switch(gErrCondition)
-				{
-					case ERR_RTN_CONDITION_T9:
-					{
-							//t9
-						ret = get_object_info(data, TOUCH_MULTITOUCHSCREEN_T9, &size_one, &obj_address);
-						size_one = 1;
-						//blen
-						value = 16;
-						register_address=6;
-						write_mem(data, obj_address+(u16)register_address, size_one, &value);
-					
-						//threshold
-						value = 40;
-						register_address=7;
-						write_mem(data, obj_address+(u16)register_address, size_one, &value);
-					
-					
-						// move Filter
-						value = 47;
-						register_address=13;
-						write_mem(data, obj_address+(u16)register_address, size_one, &value);
-					
+				median_err_setting();
 					}
-						break;
-
-					case ERR_RTN_CONDITION_T48:
+			else if((msg[4]&0x4) == 0x4)
 				{
-							// t48
-				ret = get_object_info(data, PROCG_NOISESUPPRESSION_T48, &size_one, &obj_address);
-				size_one = 1;
-
-						// Base Frq modify
-						register_address=3; 
-						value = 29;
-						write_mem(data, obj_address+(u16)register_address, size_one, &value);	
-					}
-						break;
-
-					case ERR_RTN_CONDITION_IDLE:
+				printk(KERN_ERR"[TSP] median filter ON!!!\n");
+				copy_data->read_ta_status(&ta_status);
+				if((!ta_status)&&(noise_median.mferr_setting == false)&&(noise_median.median_on_flag == false))
 						{
-							// t9
-							ret = get_object_info(data, TOUCH_MULTITOUCHSCREEN_T9, &size_one, &obj_address);
-							//blen INIT
-							value = 32;
-							register_address=6;
-							write_mem(data, obj_address+(u16)register_address, 1, &value);
-							//threshold INIT
-							value = 50;
-							register_address=7;
-							write_mem(data, obj_address+(u16)register_address, 1, &value);
-							// move Filter INIT
-							value = 46;
-							register_address=13;
-							write_mem(data, obj_address+(u16)register_address, 1, &value);
-
-							// t48
-							ret = get_object_info(data, PROCG_NOISESUPPRESSION_T48, &size_one, &obj_address);
-							// Base Frq modify INIT
-							register_address=3; 
-							value = 0;
-							write_mem(data, obj_address+(u16)register_address, 1, &value);	
-						}
-						break;
+					ret = get_object_info(copy_data, TOUCH_MULTITOUCHSCREEN_T9, &size_one, &obj_address);
+					value = 0;
+					write_mem(copy_data, obj_address+34, 1, &value); 
+					noise_median.median_on_flag = true;
 				}
-				
-				// t48
-				ret = get_object_info(data, PROCG_NOISESUPPRESSION_T48, &size_one, &obj_address);
-				size_one = 1;
-				register_address=2;
-				read_mem(data, obj_address+(u16)register_address, size_one, &value);
-				printk(KERN_ERR"[TSP]TA_probe MXT224E T%d Byte%d is %d\n",48,register_address,value);
-				value = value & 0xDF;
-				write_mem(data, obj_address+(u16)register_address, size_one, &value);
-				mdelay(5);
-				value = value | 0x20;
-				write_mem(data, obj_address+(u16)register_address, size_one, &value);
-
 			}
 		}
 		#else // ORIGINAL
@@ -1934,7 +2013,11 @@ static void mxt224_late_resume(struct early_suspend *h)
 	mxt224_enabled = 1;
 	is_inputmethod = 0;   // I know it's fault, but app couldn't solve the issue wighout this known fault.
 	qt_timer_state = 0;	
-	
+	#ifdef CLEAR_MEDIAN_FILTER_ERROR
+	noise_median.mferr_count=0;
+	noise_median.mferr_setting = false;
+	noise_median.median_on_flag = false;
+	#endif	
 	if(data->read_ta_status) {
 		data->read_ta_status(&ta_status);
 		printk(KERN_ERR "[TSP] ta_status in (mxt224_late_resume) is %d", ta_status);
@@ -2007,6 +2090,8 @@ void TSP_forced_release_for_call(void)
 
 		if (copy_data->fingers[i].z == -1) continue;
 
+		copy_data->fingers[i].z = 0;
+
 		input_report_abs(copy_data->input_dev, ABS_MT_POSITION_X, copy_data->fingers[i].x);
 		input_report_abs(copy_data->input_dev, ABS_MT_POSITION_Y, copy_data->fingers[i].y);
 		input_report_abs(copy_data->input_dev, ABS_MT_TOUCH_MAJOR, copy_data->fingers[i].z);
@@ -2015,9 +2100,7 @@ void TSP_forced_release_for_call(void)
 
 		input_mt_sync(copy_data->input_dev);
 
-		if (touch_is_pressed_arr[i]!=0)
-			touch_is_pressed = 1;
-
+		touch_is_pressed_arr[i] = 0;
 
 		if (copy_data->fingers[i].z == 0)
 			copy_data->fingers[i].z = -1;
@@ -3390,6 +3473,7 @@ static int __devinit mxt224_probe(struct i2c_client *client, const struct i2c_de
 	struct mxt224_data *data;
 	struct input_dev *input_dev;
 	int ret;
+
 	int i;
 	bool ta_status;
 	u8 **tsp_config;
@@ -3707,6 +3791,17 @@ if (device_create_file(sec_touchscreen, &dev_attr_mxt_touchtype) < 0)
 	data->early_suspend.resume = mxt224_late_resume;
 	register_early_suspend(&data->early_suspend);
 #endif
+
+	#ifdef CLEAR_MEDIAN_FILTER_ERROR   	
+	noise_median.median_on_flag = false;
+	noise_median.mferr_setting = false;
+	noise_median.mferr_count = 0;
+	noise_median.t46_actvsyncsperx_for_mferr = 45;
+	noise_median.t48_mfinvlddiffthr_for_mferr = 15;
+	noise_median.t48_mferrorthr_for_mferr = 19;
+	noise_median.t48_thr_for_mferr = 40;
+	noise_median.t48_movfilter_for_mferr = 0;
+	#endif
 
 	printk(KERN_ERR "[TSP] mxt224_probe   e\n");
 
