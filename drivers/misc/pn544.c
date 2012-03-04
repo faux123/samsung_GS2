@@ -64,8 +64,8 @@ static void pn544_disable_irq(struct pn544_dev *pn544_dev)
 
 	//spin_lock_irqsave(&pn544_dev->irq_enabled_lock, flags);
 	if (pn544_dev->irq_enabled) {
+                pn544_dev->irq_enabled = false;
 		disable_irq_nosync(pn544_dev->client->irq);
-		pn544_dev->irq_enabled = false;
 	}
 	//spin_unlock_irqrestore(&pn544_dev->irq_enabled_lock, flags);
 }
@@ -80,7 +80,7 @@ static irqreturn_t pn544_dev_irq_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 		}
 
-	pn544_disable_irq(pn544_dev);
+	//pn544_disable_irq(pn544_dev);
 	/* Wake up waiting readers */
 	do_reading=1;	
 	wake_up(&pn544_dev->read_wq);
@@ -236,6 +236,8 @@ wait_irq :
 fail:
 	
 	mutex_unlock(&pn544_dev->read_mutex);
+
+	pr_err("%s : wait_event_interruptible fail\n", __func__);
 
 	return ret;
 }

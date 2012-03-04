@@ -118,6 +118,8 @@ static void
 msmsdcc_start_command(struct msmsdcc_host *host, struct mmc_command *cmd,
 		      u32 c);
 
+static inline void msmsdcc_delay(struct msmsdcc_host *host);
+
 static void msmsdcc_reset_and_restore(struct msmsdcc_host *host)
 {
 	if (host->plat->sdcc_v4_sup) {
@@ -154,7 +156,8 @@ static void msmsdcc_reset_and_restore(struct msmsdcc_host *host)
 		pr_debug("%s: Controller has been reinitialized\n",
 				mmc_hostname(host->mmc));
 
-		dsb();
+		msmsdcc_delay(host);
+
 		/* Restore the contoller state */
 		writel_relaxed(host->pwr, host->base + MMCIPOWER);
 		writel_relaxed(mci_clk, host->base + MMCICLOCK);
@@ -198,7 +201,6 @@ msmsdcc_request_end(struct msmsdcc_host *host, struct mmc_request *mrq)
 	return retval;
 }
 
-static inline void msmsdcc_delay(struct msmsdcc_host *host);
 static inline void msmsdcc_delay_samsung(struct msmsdcc_host *host);
 
 static void

@@ -166,11 +166,7 @@ enum msm_spi_state {
 
 #define SPI_DELAY_THRESHOLD           1
 /* Default timeout is 10 milliseconds */
-#if defined(CONFIG_TDMB) || defined(CONFIG_TDMB_MODULE)	
-#define SPI_DEFAULT_TIMEOUT           20
-#else
 #define SPI_DEFAULT_TIMEOUT           10
-#endif
 /* 250 microseconds */
 #define SPI_TRYLOCK_DELAY             250
 
@@ -762,22 +758,19 @@ static inline int msm_spi_wait_valid(struct msm_spi *dd)
 	 */
 	if (delay < SPI_DELAY_THRESHOLD)
 		delay = SPI_DELAY_THRESHOLD;
-	timeout = jiffies + msecs_to_jiffies(delay * SPI_DEFAULT_TIMEOUT);
+
+	/* Adding one to round off to the nearest jiffy */
+	timeout = jiffies + msecs_to_jiffies(delay * SPI_DEFAULT_TIMEOUT) + 1;
 	while (!msm_spi_is_valid_state(dd)) {
 		if (time_after(jiffies, timeout)) {
-#if defined(CONFIG_TDMB) || defined(CONFIG_TDMB_MODULE)	
-		    if(!msm_spi_is_valid_state(dd)) {
-    			dd->cur_msg->status = -EIO;
-    			dev_err(dd->dev, "%s: SPI operational state not valid"
-    				"\n", __func__);
-    			return -1;
-            }    			
-#else
-			dd->cur_msg->status = -EIO;
-			dev_err(dd->dev, "%s: SPI operational state not valid"
-				"\n", __func__);
-			return -1;
-#endif
+			if(!msm_spi_is_valid_state(dd)) {
+				if (dd->cur_msg)
+					dd->cur_msg->status = -EIO;
+				dev_err(dd->dev, "%s: SPI operational state"
+					"not valid\n", __func__);
+				return -ETIMEDOUT;
+			} else
+				return 0;
 		}
 		/*
 		 * For smaller values of delay, context switch time
