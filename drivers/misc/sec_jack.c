@@ -37,6 +37,7 @@
 #define SEND_KEY_CHECK_TIME_MS	60		/* 60ms */
 #define DET_CHECK_TIME_MS	50			/* 200ms -> 50ms */
 #define WAKE_LOCK_TIME		(HZ * 5)	/* 5 sec */
+#define WAKE_LOCK_TIME_IN_SENDKEY (HZ * 1)
 #define SUPPORT_PBA
 
 #ifdef SUPPORT_PBA
@@ -335,7 +336,7 @@ static void sec_jack_send_key_work_func(struct work_struct *work)
 	int time_left_ms = SEND_KEY_CHECK_TIME_MS;
 	int send_key_state=0;
 
-	wake_lock(&hi->det_wake_lock);
+	wake_lock_timeout(&hi->det_wake_lock, WAKE_LOCK_TIME_IN_SENDKEY);
 	/* debounce send/end key */
 	while (time_left_ms > 0 && !hi->send_key_pressed) {
 		send_key_state = pdata->get_send_key_state();
@@ -348,7 +349,6 @@ static void sec_jack_send_key_work_func(struct work_struct *work)
 					!send_key_state, !pdata->get_det_jack_state(),
 					hi->cur_jack_type != SEC_HEADSET_4POLE );
 			//enable_irq(hi->pdata->send_int);
-			wake_unlock(&hi->det_wake_lock);				
 			return;
 		}
 		msleep(10);
@@ -362,7 +362,6 @@ static void sec_jack_send_key_work_func(struct work_struct *work)
 				__func__, send_key_state ? "pressed" : "released");
 	}
 	//enable_irq(hi->pdata->send_int);
-	wake_unlock(&hi->det_wake_lock);		
 	return;
 }
 
