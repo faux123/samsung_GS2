@@ -328,7 +328,7 @@ static int __pmic8058_kp_scan_matrix(struct pmic8058_kp *kp, u16 *new_state,
 					!(new_state[row] & (1 << col)));
 
 			input_sync(kp->input);
-#if 1
+#if 0
 			pr_info("key [%d:%d] %s keycode [%d]\n", row, col,
 					!(new_state[row] & (1 << col)) ?
 					"pressed" : "released", kp->keycodes[code]);
