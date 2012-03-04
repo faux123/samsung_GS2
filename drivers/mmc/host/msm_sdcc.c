@@ -122,6 +122,8 @@ static inline void sam_msmsdcc_delay(struct msmsdcc_host *host);
 static inline void msmsdcc_delay(struct msmsdcc_host *host);
 
 
+static inline void msmsdcc_delay(struct msmsdcc_host *host);
+
 static void msmsdcc_reset_and_restore(struct msmsdcc_host *host)
 {
 	if (host->plat->sdcc_v4_sup) {
