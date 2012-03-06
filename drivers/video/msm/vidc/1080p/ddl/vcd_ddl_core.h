@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -86,7 +86,6 @@
 #endif
 /* End */
 #define DDL_FW_H264DEC_CONTEXT_SPACE_SIZE      (DDL_KILO_BYTE(800))
-#define DDL_FW_H264ENC_CONTEXT_SPACE_SIZE      (DDL_KILO_BYTE(20))
 #define DDL_FW_OTHER_CONTEXT_SPACE_SIZE        (DDL_KILO_BYTE(10))
 
 #define VCD_DEC_CPB_SIZE         (DDL_KILO_BYTE(512))
