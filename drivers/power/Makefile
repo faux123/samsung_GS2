@@ -36,3 +36,22 @@ obj-$(CONFIG_CHARGER_ISP1704)	+= isp1704_charger.o
 obj-$(CONFIG_CHARGER_MAX8903)	+= max8903_charger.o
 obj-$(CONFIG_CHARGER_TWL4030)	+= twl4030_charger.o
 obj-$(CONFIG_CHARGER_GPIO)	+= gpio-charger.o
+obj-$(CONFIG_BATTERY_MSM)       += msm_battery.o
+obj-$(CONFIG_BATTERY_MSM8X60)   += msm_charger.o
+obj-$(CONFIG_PM8058_CHARGER)    += pmic8058-charger.o
+obj-$(CONFIG_ISL9519_CHARGER)   += isl9519q.o
+obj-$(CONFIG_PM8058_FIX_USB)    += pm8058_usb_fix.o
+obj-$(CONFIG_BATTERY_QCIBAT)    += qci_battery.o
+obj-$(CONFIG_BATTERY_BQ27520)	+= bq27520_fuelgauger.o
+obj-$(CONFIG_BATTERY_BQ27541)	+= bq27541_fuelgauger.o
+obj-$(CONFIG_SMB137B_CHARGER)   += smb137b.o
+obj-$(CONFIG_PM8XXX_CCADC)	+= pm8xxx-ccadc.o
+obj-$(CONFIG_PM8921_BMS)	+= pm8921-bms.o
+obj-$(CONFIG_PM8921_CHARGER)	+= pm8921-charger.o
+obj-$(CONFIG_LTC4088_CHARGER)	+= ltc4088-charger.o
+obj-$(CONFIG_CHARGER_SMB328A)	+= smb328a_charger.o
+ifeq ($(CONFIG_SAMSUNG_8X60_TABLET),y)
+obj-$(CONFIG_BATTERY_P5LTE)	+= p5-lte_battery.o
+else
+obj-$(CONFIG_BATTERY_SEC)	+= sec_battery.o
+endif

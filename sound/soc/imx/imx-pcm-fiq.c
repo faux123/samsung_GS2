@@ -8,8 +8,7 @@
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
+ *  Free Software Foundation;  only version 2 of the  License.
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -238,12 +237,14 @@ static struct snd_pcm_ops imx_pcm_ops = {
 
 static int ssi_irq = 0;
 
-static int imx_pcm_fiq_new(struct snd_card *card, struct snd_soc_dai *dai,
-	struct snd_pcm *pcm)
+static int imx_pcm_fiq_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_pcm *pcm = rtd->pcm;
 	int ret;
 
-	ret = imx_pcm_new(card, dai, pcm);
+	ret = imx_pcm_new(rtd);
 	if (ret)
 		return ret;
 
