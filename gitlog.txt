@@ -1,0 +1,1038 @@
+commit 0bb9f2eccbe596b881ea770dab0731323412da7d
+Author: faux123 <reioux@gmail.com>
+
+    video/msm/mdp: update mdp driver from ATT SkyRocket Source
+
+commit 675ac5a7f1314312e2bea57852219a264a502a9c
+Author: Abhishek Kharbanda <akharban@codeaurora.org>
+
+    msm_fb: Removing HDCP timedout error.
+
+commit 2e0893f0a5c7a762ceff5d8bb473725d13847286
+Author: Abhishek Kharbanda <akharban@codeaurora.org>
+
+    msm_fb: Fixing Aspect Ratio
+
+commit 5e1da40bfd9b38731bd1638d10499b557e73f066
+Author: Siddartha Mohanadoss <smohanad@codeaurora.org>
+
+    thermal: msm_tsens: Fix clearing interrupt bit on resume
+
+commit 09894777e97712f697b102a988baaa7934abb790
+Author: Venkat Gopalakrishnan <venkatg@codeaurora.org>
+
+    msm: sdio: Replace banned/deprecated strcmp with strncmp
+
+commit 9550af67c976a6c6dd1e1f9d3e47ecd6c9a1f65b
+Author: Swetha Basineni <sbasin@codeaurora.org>
+
+    mmc: msm_sdcc: use prog_done for all commands having R1B response type
+
+commit 8c9c9d2ec4590ce72fc98f3c1fd49973e9c37890
+Author: Deepika Pepakayala <deepikap@codeaurora.org>
+
+    msm: vidc: Fix handling EOS with bitstream error.
+
+commit 4a48f33888caee6efdab33ad1f00b26deeddd030
+Author: Seth Jennings <sjenning@linux.vnet.ibm.com>
+
+    staging: zcache: remove zcache_direct_reclaim_lock
+
+commit 8a1ff4db30e0afdfd4033724ba55de10e97bfe43
+Author: Seth Jennings <sjenning@linux.vnet.ibm.com>
+
+    staging: zcache: reduce tmem bucket lock contention
+
+commit b0e5d962ac3900a013cf2850e4b6901a80c360ef
+Author: Seth Jennings <sjenning@linux.vnet.ibm.com>
+
+    staging: zcache: fix crash on cpu remove
+
+commit 6c595e694f002c3508f9347621fa4269ca488e5e
+Author: Seth Jennings <sjenning@linux.vnet.ibm.com>
+
+    staging: zcache: fix cleancache crash
+
+commit 1428dc4d380f2df4cd8a72bb3f1281e8c1c3e251
+Author: Dan Carpenter <error27@gmail.com>
+
+    Staging: zcache: signedness bug in tmem_get()
+
+commit c2cdfb41aba73ea65c9d265fc35c50cb716833b6
+Author: Seth Jennings <sjenning@linux.vnet.ibm.com>
+
+    staging: zcache: fix crash on high memory swap
+
+commit b1abcd8b7426ca2911d17e130fc0fed9bbccc6ea
+Author: Seth Jennings <sjenning@linux.vnet.ibm.com>
+
+    staging: zcache: fix typos
+
+commit a22c8bc66ea3dd2bac46d1b91cffa99ecf2077d9
+Author: Seth Jennings <sjenning@linux.vnet.ibm.com>
+
+    staging: zcache: fix possible sleep under lock
+
+commit f240af7c07620d1283256127e492a11167b2bca3
+Author: Nitin Gupta <ngupta@vflare.org>
+
+    zcache: Fix build error when sysfs is not defined
+
+commit 2b43db5eccd6d49d1d137fc9b1667433b175bd2b
+Author: Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
+
+    zcache: Use div_u64 for 64-bit division
+
+commit c87c57c40cce70d60322e5f465b610a714c6cfa4
+Author: Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
+
+    staging: zcache: include module.h for MODULE_LICENSE
+
+commit 78ffd6cd7d3ead52fdc3cf87bbb48c992bb92017
+Author: Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
+
+    staging: zcache: module is GPL
+
+commit be112dc6fcafc826f84c1972f712ffb88163ad21
+Author: Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
+
+    staging: fix zcache building
+
+commit b534c0894c9beb9f8a39e50934299ba49a916b46
+Author: Dan Magenheimer <dan.magenheimer@oracle.com>
+
+    staging: zcache: support multiple clients, prep for KVM and RAMster
+
+commit e961f415a38cf29f10092f5de512d14e76c92167
+Author: Vasiliy Kulikov <segoon@openwall.com>
+
+    staging: zcache: fix memory leak
+
+commit 8497e225c429582e19d3f3874809bac682595e50
+Author: Nitin Gupta <ngupta@vflare.org>
+
+    staging: Allow sharing xvmalloc for zram and zcache
+
+commit eeb7581940db347b06d17827f5418fb9329f54a7
+Author: faux123 <reioux@gmail.com>
+
+    zram: Set initial disksize to some default value
+    Currently, we set initial disksize as 0, which forces
+    user to write some value to corresponding zram device's
+    sysfs node, before the device can be used. Now, we avoid
+    this step by providing some default size initially.
+
+commit 184497c77849ccdf31847eb1302ba2ef4037313f
+Author: faux123 <reioux@gmail.com>
+
+    zram: Simplify zram disk resizing interface
+    Also remove unnecessary messages.
+
+commit 4d35f37f069c970bffc5af4c6c9767289393271e
+Author: faux123 <reioux@gmail.com>
+
+    zram: Make gobal variables use unique names
+    Global variables 'num_devices' and 'devices' are too
+    general to be global. This patch switches the name to
+    be "zram_devices".
+
+commit 4d97163834f0900a50364aab0c10d0f3cac8e257
+Author: faux123 <reioux@gmail.com>
+
+    zram: Kernel config option for number of devices
+    Allows configuring default number of zram devices
+    as kernel config option. User can override this
+    value using 'num_devices' module parameter.
+
+commit a0d46c7c80a2a7b9074e6393c7dbfdb9d89d4132
+Author: faux123 <reioux@gmail.com>
+
+    zram: Fix sparse warnings
+    Fixes sparse warning:
+    zram_drv.c:666:6: warning: symbol 'zram_slot_free_notify' was not
+    declared. Should it be static?
+
+commit a5a359580e4c5e63e264f2ccc929c2a5db5060f4
+Author: faux123 <reioux@gmail.com>
+
+    zram: driver update to latest stable release on 2011-07-18
+
+commit 26e59361ab114315189dceaaa96106708153d3fa
+Author: faux123 <reioux@gmail.com>
+
+    kernel:mm: Backported vzalloc to support ZRAM
+
+commit fddf6088e6e5ffa5c7a33e1e9a4f19d62c3618f9
+Author: faux123 <reioux@gmail.com>
+
+    Staging: zram: simplify zram_make_request
+    zram_read() and zram_write() always return zero, so make them return
+    void to simplify the code.
+
+commit 83e8a9dcf818ba8be9c02d7af543e56924b8d574
+Author: faux123 <reioux@gmail.com>
+
+    Staging: zram: make zram_read return a bio error if the device is not
+    initialized
+
+commit f79df3cfc82b50a1275796fe024ca25842b8d8ea
+Author: faux123 <reioux@gmail.com>
+
+    Staging: zram: round up the disk size provided by user
+    Currently disksize_store() round down the disk size provided by user.
+    This is probably not what one would expect, so round up instead.
+
+commit a9a8bd4b84543458edfeca237ab272d8a02904ac
+Author: faux123 <reioux@gmail.com>
+
+    Staging: zram: make ZRAM depends on SYSFS
+    We can not configure zram device without sysfs anyway, so make zram
+    depends on it.
+
+commit 38aadab83d937977bcfaf736c0a3ed5cb07b4dcc
+Author: faux123 <reioux@gmail.com>
+
+    zram: various improvements and cleanups
+    The zram module creates RAM based block devices named /dev/zram<id>
+    (<id> = 0, 1, ...). Pages written to these disks are compressed and stored
+    in memory itself.
+
+commit c5b79537fb61d5c45ee49d81262f5e5ec7265ccd
+Author: faux123 <reioux@gmail.com>
+
+    zram: Rename ramzswap to zram in documentation
+    Related changes:
+     - Included example to show usage as generic
+    (non-swap) disk with ext4 filesystem.
+     - Renamed rzscontrol to zramconfig to match
+    with new device naming.
+
+commit 0369b0b4523b990cc8a5d0a15bca6f02b6954bcd
+Author: faux123 <reioux@gmail.com>
+
+    zram: Rename ramzswap to zram in code
+    Automated renames in code:
+     - rzs* -> zram*
+     - RZS* -> ZRAM*
+     - ramzswap* -> zram*
+
+commit 0a03c9abed1607fdddb5680ec10b8b18fe7978f1
+Author: faux123 <reioux@gmail.com>
+
+    zram: Rename ramzswap files to zram
+    Related changes:
+     - Modify revelant Kconfig and Makefile accordingly.
+     - Change include filenames in code.
+     - Remove dependency on CONFIG_SWAP in Kconfig as zram usage
+    is no longer limited to swap disks.
+
+commit 51ed5c774a729927b3d8f7cfc130b08b77f74adc
+Author: faux123 <reioux@gmail.com>
+
+    zram: Support generic I/O requests
+    Currently, ramzwap devices (/dev/ramzswapX) can only
+    be used as swap disks since it was hard-coded to consider
+    only the first request in bio vector.
+
+commit d6b3400f7a0b22605dab62ff72193fdf4195a876
+Author: faux123 <reioux@gmail.com>
+
+    staging:zcache: Enable zcache by default
+
+commit 0399c2435453cd867da6d10bbb4343b782448ca2
+Author: faux123 <reioux@gmail.com>
+
+    drivers/staging: zcache: dynamic page cache/swap compression
+
+commit 6067068232f4789e2e37f51d760b3d2d404077d7
+Author: faux123 <reioux@gmail.com>
+
+    gitignore: updated gitignore
+
+commit 956b8d31a970087ef3220ff6415f0ffd09e54f08
+Author: faux123 <reioux@gmail.com>
+
+    board/device: Add GPU turbo boost for 2D as well
+
+commit d2965128877c459420b3c8157f09c59f82496d48
+Author: Jeff Ohlstein <johlstei@codeaurora.org>
+
+    msm: watchdog: increase pet time to ten seconds
+
+commit f4b14974389f99a9f6f8365253d413078a4893a0
+Author: faux123 <reioux@gmail.com>
+
+    board/devices: enable GPU turbo mode @ 320 Mhz
+
+commit ed5ae26853065c00d559b674078e512a83530aae
+Author: faux123 <reioux@gmail.com>
+
+    Revert "msm: audio: qdsp6v2: Add PCM-WB support for VoIP."
+
+commit 465eb89c2abdc27696332767163abfda4d34e991
+Author: faux123 <reioux@gmail.com>
+
+    Revert "msm: audio: qdsp6v2: Enable soft volume command to avoid noise"
+
+commit ecb3f9aaf400edb801fe08cb66ab71d169a4cbec
+Author: faux123 <reioux@gmail.com>
+
+    Revert "usb: msm: 8x60: use PHY ID circuit for ID_GND to ID_A transistions."
+
+commit 90e3e5fc15e79e39e6f7c4b8f69fd940d7f5d140
+Author: Rajkumar Raghupathy <raghup@codeaurora.org>
+
+    USB: OTG: Fix fast plug out/in wall charger charging issue
+
+commit ac0c86b16a93f5a1d32a4691b821eb54d4a4d886
+Author: Anji jonnala <anjir@codeaurora.org>
+
+    usb: msm: 8x60: use PHY ID circuit for ID_GND to ID_A transistions.
+
+commit e00e95a00d4b6947cab0bb1a71e63771685698af
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: f_mtp: Fix problems transferring files from device to host
+
+commit ef90b28a091f0a7f3c7e770b25f48fd1222e8b28
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: f_mtp: Make sure request is dequeued if transfer is canceled
+
+commit 146540325c53ceb7ec81f88d0cbd66366c06e570
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: f_mtp: Zero length packet fixes
+
+commit 25c20020e2f2d69e25926f054dcfcfcb4e3c2eff
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: f_mtp: Support for file transfer length greater than 4 gigabytes
+
+commit d024372b9858ddc821f69d5a27333d0528533e64
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: f_mtp: Return zero result for successful file transfer.
+
+commit b34694d9f4bf7d7bcb806c15a729d5ec6b1576b9
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: f_mtp: MTP driver cleanup:
+
+commit 98041f4671ffd6dca590020be3bb129a461ad66a
+Author: Pavankumar Kondeti <pkondeti@codeaurora.org>
+
+    USB: msm_otg: Increment PM usage counter for suspend failure cases
+
+commit 0fc3f2fb78864a991aff7617a47d3f6aed6511d3
+Author: Pavankumar Kondeti <pkondeti@codeaurora.org>
+
+    defconfig: 8x60: Enable USB accessory function
+
+commit f9a7f02bfec18997cbdc9661caf02502bc3667aa
+Author: Pavankumar Kondeti <pkondeti@codeaurora.org>
+
+    USB: gadget: android: Restore default composition upon accessory disable
+
+commit e21e0a3eb39cbae4289d02b7f5edbaffdba2169e
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: f_accessory: Set bNumEndpoints to correct value of 2
+
+commit a0cf6d24d2ac898dd29f4e07a72c4d5f915c4ede
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: f_accessory: Add string for accessory's unique serial number
+
+commit bfadc46e7ccd5bcbf80a6f1adcd59df9fa56bcb7
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: f_accessory: Clear disconnected flag when driver file is opened
+
+commit ab8b8906c7220d5dd9902794ee8ac8af68047dae
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: f_accessory: Clear previous strings on ACCESSORY_GET_PROTOCOL
+
+commit 3e39ab1f74b1b5c90569399d60dbb3a480c645bc
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: f_accessory: Clear accessory strings when USB is disconnected
+
+commit 1d27e124ec543d73cf0728348f5aa10997ed55cc
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: f_accessory: Misc improvements and cleanup:
+
+commit b2085c33aa9ee527e227656f4ecf1fd30fc9aa95
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: f_accessory: New gadget driver for android USB accesories
+
+commit 87ff29f5ac0ca5de25a59f838a7f58526b378024
+Author: Mike Lockwood <lockwood@android.com>
+
+    USB: gadget: android: Support switching vendor ID when configuration changes
+
+commit 671cafede1752d7d4f723b4bba2fb9b0701ea303
+Author: Bharath Ramachandramurthy <bramacha@codeaurora.org>
+
+    msm: audio: qdsp6v2: Modify the wait timer for apr registration
+
+commit 1634e89252f933bf68b2c06f70584367701c1ab6
+Author: Amal Paul <amalp@codeaurora.org>
+
+    msm: audio: qdsp6v2: Reduce the pcm write timeout value
+
+commit 0fa154997e5c94a02911c17e7afef480b1c4beac
+Author: Preetam Singh Ranawat <apranawat@codeaurora.org>
+
+    msm: audio: qdsp6v2: Fix crash with erroneous aac playback
+
+commit 73011d3217f00d39acf3a2b3fc9cc1c4c01cf8ba
+Author: Ben Romberger <bromberg@codeaurora.org>
+
+    msm: audio: qdsp6v2: Send session ID in RTAC APR packet
+
+commit 42b6231872579b488775a28ee649ad56086e50b4
+Author: Swaminathan Sathappan <Swami@codeaurora.org>
+
+    msm: audio: qdsp6v2: Disable idle wakelocks for pcm driver
+
+commit 134cc8f2d155c36b7c602479b2f25d6c52c79a7d
+Author: Neema Shetty <nshetty@codeaurora.org>
+
+    msm: audio: qdsp6v2: Add PCM-WB support for VoIP.
+
+commit c4488d320821687a290bc9cae48ab4145fd6fb59
+Author: Preetam Singh Ranawat <apranawat@codeaurora.org>
+
+    msm: audio: qdsp6v2: Fix for enabling dolby aac decoder.
+
+commit d1b070333210d5c0fa7a977b20db85427d6633a7
+Author: Preetam Singh Ranawat <apranawat@codeaurora.org>
+
+    msm: audio: qdsp6v2: Unification changes for AAC Multichannel decoder
+
+commit 32e0eddb161a04df601881bbc0e92889af8e2110
+Author: Preetam Singh Ranawat <apranawat@codeaurora.org>
+
+    msm: audio: qdsp6v2: Add Decoder Unification changes.
+
+commit 84e1aaf3cb34f4eeea5d020a9c7b16b97cf20d5b
+Author: Preetam Singh Ranawat <apranawat@codeaurora.org>
+
+    msm: audio: qdsp6v2: Enabling Dolby pulse aac codec.
+
+commit 0399c981e0ce5d08b8bbb6fad2a87e174fa1f760
+Author: Preetam Singh Ranawat <apranawat@codeaurora.org>
+
+    msm: audio: qdsp6v2: Add fmt type adif in aac driver.
+
+commit 9dd2296ceb8169341d2c733793d7e573379ae369
+Author: Preetam Singh Ranawat <apranawat@codeaurora.org>
+
+    msm: audio: qdsp6v2: Add support for aac dual mono playback
+
+commit d4c9c1a721de8d0bcc9141048ac4f63cbc8e441f
+Author: Preetam Singh Ranawat <apranawat@codeaurora.org>
+
+    msm: audio: qdsp6v2: Address multiple seek issues in AAC 5.1
+
+commit 322711600cb36a57f2fa344b42d07209df841856
+Author: Preetam Singh Ranawat <apranawat@codeaurora.org>
+
+    msm:  audio: qdsp6v2: Add support for multichannel AAC.
+
+commit 4b9f2be8273c6610157060cab9e8274242373573
+Author: Preetam Singh Ranawat <apranawat@codeaurora.org>
+
+    msm: audio: qdsp6v2: Add support for output port flush
+
+commit d86586dade208ae63b9a85f1b9fda6073195f2ce
+Author: Laxminath Kasam <lkasam@codeaurora.org>
+
+    msm: audio: qdsp6v2: correction in allocation of number of dma_channels.
+
+commit 33e3962fba65203a2a5ab3eb48675b2ddc52a797
+Author: Swaminathan Sathappan <Swami@codeaurora.org>
+
+    msm: audio: qdsp6v2: Enable soft volume command to avoid noise
+
+commit 5cca7e1905b0f9dee6a0b7719d6d6550dd4a5655
+Author: Jeyaprakash Soundrapandian <jsound@codeaurora.org>
+
+    mm-camera: configure the mipi csi based on lanecount
+
+commit 116c98a170344663aa26b39d66a9e53b24c85345
+Author: Sunid Wilson <sunidw@codeaurora.org>
+
+    msm: camera: Postprocessing framework changes
+
+commit 2c6012817f2abfef99075da0a3d5de1758ba46a4
+Author: Sunid Wilson <sunidw@codeaurora.org>
+
+    msm: camera: Fix recording state machine bug
+
+commit b6ccb94c3ea2149730d4062db23ccdb4321398f6
+Author: Sunid Wilson <sunidw@codeaurora.org>
+
+    msm: camera: Remove additional check in msm_queue_drain
+
+commit 93ff7af494e8996dda468239fc62a965cc82cfc2
+Author: Karthikeyan Ramasubramanian <kramasub@codeaurora.org>
+
+    msm: rpc: While powering down flush all the rpcrouter workqueues
+
+commit accba0d9668db58be0c572b3e7196b348c5b5945
+Author: Karthikeyan Ramasubramanian <kramasub@codeaurora.org>
+
+    msm: rpc: Reader thread to allocate memory without holding a spinlock
+
+commit d8a47c09cbe0abbc4fe306daa841c1a16dcd604e
+Author: Karthikeyan Ramasubramanian <kramasub@codeaurora.org>
+
+    msm: rpc: Reorganize the usage of spinlocks in RPC Router reader thread
+
+commit cc126a49defe6cec75317df6a3eae7fe7d83dbdd
+Author: Karthikeyan Ramasubramanian <kramasub@codeaurora.org>
+
+    msm: smd_pkt: Extend read operation to receive data larger than SMD FIFO
+
+commit f598f57dd4c97c17cc511d7a282d3f0d5c47c1af
+Author: Eric Holmberg <eholmber@codeaurora.org>
+
+    usb: gsmd: Save interrupt state when using spinlocks
+
+commit 93ef29099062fb4f2e91132b2e8b61038a87b256
+Author: Bharath Ramachandramurthy <bramacha@codeaurora.org>
+
+    msm: audio: qdsp6v2: Close smd ports upon failure to open.
+
+commit 9666c2246c870d637c8808d58c3b1296016d2110
+Author: faux123 <reioux@gmail.com>
+
+    msm_fb/hdmi: fixed merge error
+
+commit 69542a7c661cbd66b971ff6a66cb6a758ce7f386
+Author: Manoj Rao <manojraj@codeaurora.org>
+
+    msm_fb: HDMI: EDID > 2 blocks, params not set.
+
+commit 0792203c7b89436a1628880fbd4912e529ffc991
+Author: Abhishek Kharbanda <akharban@codeaurora.org>
+
+    msm_fb: Check for ACP and ACFG register before reset core.
+
+commit 6dfd6c569f1a4aaca8c3e8bae068e4d6d7632793
+Author: Manoj Rao <manojraj@codeaurora.org>
+
+    msm: HDMI: CEC: Hardware FSM reset.
+
+commit 66e6f766fbaad9f44972932f60129d62898a25cb
+Author: swetha <sbasin@codeaurora.org>
+
+    msm_fb: Remove Audio Packet Control Register setup
+
+commit fcdd719d0b6c41541e5492842d950b9d353880b1
+Author: Manoj Rao <manojraj@codeaurora.org>
+
+    msm: display: HDMI: Driver support for CEC feature
+
+commit 9cca59c6f32b40ff5b551921a7dac156f6220037
+Author: Manoj Rao <manojraj@codeaurora.org>
+
+    msm: display: HDMI: Driver support for CEC feature
+
+commit c3fd89a0e5bac4d9f0fb836ded4c287a537e5ef2
+Author: Manoj Rao <manojraj@codeaurora.org>
+
+    msm: display: HDMI: Remove audio packet setup for ACP, ISRC
+
+commit 3e1137abe454250d839c937a50bd4dd6c98c4e35
+Author: Ashay Jaiswal <ashayj@codeaurora.org>
+
+    RTC: rtc-msm: Fix uptime corruption due to slow clock overflow.
+
+commit f593a7a255d74f5ce9b22b366ad44e000856aff2
+Merge: b996844 da71614
+Author: faux123 <reioux@gmail.com>
+
+    Merge remote branch 'origin/master'
+
+commit b996844ebbb803dc5da6838a52dd83788a19b011
+Author: Mayank Rana <mrana@codeaurora.org>
+
+    msm_serial_hs: Fix issue related to sleeping in invalid context
+
+commit 209896e9063b149d1edbbe0da335773b0b25734a
+Author: Mayank Rana <mrana@codeaurora.org>
+
+    msm_serial_hs_lite: Set UART Clock rate to zero, when it is disable
+
+commit 58d55e3e74418584aab81634b663378668c34331
+Author: Siddartha Mohanadoss <smohanad@codeaurora.org>
+
+    thermal: tsens: Add suspend/resume for TSENS
+
+commit 7bb22fc2ddef6790f00095612360015ca7a4ce9a
+Author: Suman Tatiraju <sumant@codeaurora.org>
+
+    msm: kgsl: New low power level
+
+commit 2a4e525a0c08fa0fe8333a54a7ba96049a7f90fd
+Author: swetha <sbasin@codeaurora.org>
+
+    msm: kgsl: Count a percentage of _io time
+
+commit d4ed21e53e601a947e0ff84e47b88d083de778f3
+Author: Lucille Sylvester <lsylvest@codeaurora.org>
+
+    msm: kgsl: Clocks should be set to the active level during NAP
+
+commit eca51d85cec3140ce403b0ebc6f503f7266ec39f
+Author: Lucille Sylvester <lsylvest@codeaurora.org>
+
+    msm: kgsl: Add a periodic check to turn the TZ algorithm on
+
+commit c1da1c3e2c9c811c6f35051bdeddd9f592f7a92f
+Author: Raj Kushwaha <rajk@codeaurora.org>
+
+    msm: kgsl: Update pwrlevel_change
+
+commit da71614779f18b893d30c3782233fd1fc13c5ce9
+Author: Roman Birg <romanbirg@gmail.com>
+
+    input/keyboard: add BLN support
+
+commit 47122597557531e87b5b4bc187e018f036de54fb
+Author: faux123 <reioux@gmail.com>
+
+    Overclocking: reduced max to 1.728 GHz due to PLL limitations
+
+commit 7c0581fbfcf5d4ac59785d2aca91fe0c1740ece8
+Author: faux123 <reioux@gmail.com>
+
+    Overclock: Initial overclock patch
+
+commit a2de4e4a6e26cc2af36abdda11d01fbe033bfd5a
+Author: faux123 <reioux@gmail.com>
+
+    input:touchscreen: reduced amount of printk spamming to dmesg log
+
+commit 9aeaef91fa93da7ededaf9e8ce4fd0de40e4c50b
+Author: faux123 <reioux@gmail.com>
+
+    Added Global CPU Voltage table used for adjusting voltage table
+    for SnapDragon Dual Core.  Inspired by Snq- modified by faux123 for
+    SnapDragon Dual Core architectures.
+
+commit d8ae9fb7cd087292b27a92e3d300e2e2d4ff898a
+Author: faux123 <reioux@gmail.com>
+
+    Added Scaling_Available_Frequencies back to cpufreq sysfs interface
+
+commit 99aa49d1c172c775b7e2ec6c3290c8924b3cff36
+Author: faux123 <reioux@gmail.com>
+
+    mm: retry page fault when blocking on disk transfer
+
+commit 564a34341bf606e1d7211d7dd91f221460ad4d6e
+Author: faux123 <reioux@gmail.com>
+
+    PM / Sleep: fixed coding derp from "Drop pm_op() and pm_noirq_op()"
+
+commit dde5faf5458f928da9efb00b6a7f7c347188627f
+Author: faux123 <reioux@gmail.com>
+
+    PM / Sleep: Drop pm_op() and pm_noirq_op()
+
+commit da728f0d1a9de507e7680022cd61af6a6e617803
+Author: faux123 <reioux@gmail.com>
+
+    PM / Sleep: Unify diagnostic messages from device suspend/resume
+
+commit 25bb013db375c1d8e90ce015f47c13fd45b42c47
+Author: Shan Hai <haishan.bai@gmail.com>
+
+    sched/rt: code cleanup, remove a redundant function call
+
+commit 76f01be317841684b392bd6d0c721f717c6829f8
+Author: Dave Martin <dave.martin@linaro.org>
+
+    ARM: Add optimised swahb32() byteswap helper for v6 and above
+
+commit 33bd54ed181f441dba360e38055b8a37e4fea816
+Author: faux123 <reioux@gmail.com>
+
+    hugetlb: Replace BUG() with BUILD_BUG() for dummy definitions.
+
+commit ffb9b3447a78002f764a76a95f76a28e6e0e13bc
+Author: faux123 <reioux@gmail.com>
+
+    kernel.h: Add BUILD_BUG() macro.
+
+commit 237fc30df4af1a17945785185c9b44db04cdb9c4
+Author: Wu Fengguang <fengguang.wu@intel.com>
+
+    nfs: writeback pages wait queue
+
+commit 5f1e9f9cad73afa58e0121ee2ff6f28beed53e5c
+Author: Wu Fengguang <fengguang.wu@intel.com>
+
+    block: limit default readahead size for small devices
+
+commit 459a4e322e8675e1c68088e004cd37d2a53d118f
+Author: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+
+    PM / Suspend: Fix bug in suspend statistics update
+
+commit 839e4ce7531896e7443e2cf97fe5a6ba8d632ea1
+Author: Wu Fengguang <fengguang.wu@intel.com>
+
+    make default readahead size a kernel parameter
+    From: Nikanth Karthikesan <knikanth@suse.de>
+
+commit 6203a3971bb3022ce395e740da555fcc38667b47
+Author: faux123 <reioux@gmail.com>
+
+    tty: disable kernel CIQ tty driver
+
+commit e3e4b62f399e5594f6d97ee247b235e8d5640f4d
+Author: Kautuk Consul <consul.kautuk@gmail.com>
+
+    mm/vmalloc.c: eliminate extra loop in pcpu_get_vm_areas error path
+
+commit 082e98cbf1dd656ccc6f336d4400dc4f5ca0b4e4
+Author: Rafael J. Wysocki <rjw@sisk.pl>
+
+    PM / Sleep: Remove pm_runtime_suspended() from __pm_generic_call()
+
+commit 258291cfa1bf58ebcaa7bb6e5673640cf9942235
+Author: Ming Lei <tom.leiming@gmail.com>
+
+    lockdep: print lock name for lockdep_init_error
+
+commit 2f04ebe9cb9ec494cd1cd2601e315c453cd5bc36
+Author: faux123 <reioux@gmail.com>
+
+    kernel:sched: LOAD_FREQ (4*HZ+61) avoids loadavg Moire
+
+commit 344226d5e67191a9da6f25dc3993e65115229b52
+Author: Andrew Vagin <avagin@openvz.org>
+
+    sched: don't call task_group() many times in set_task_rq()
+
+commit 0ad5771781c11ad653116da294e38bd093c4df5a
+Author: faux123 <reioux@gmail.com>
+
+    dm-cache: block level disk cache target for device mapper
+
+commit ccec44801112da13de18560dab29d1c4b016d012
+Author: Maya Spivak <mspivak@codeaurora.org>
+
+    partition_sched_domains: Do not destroy old sched domain on cpu_up
+
+commit 0e02cf9682ca956826ea3bbc837b965fce1cf5e4
+Author: Maya Spivak <mspivak@codeaurora.org>
+
+    sched: Do not block when waiting to free old root domain
+
+commit 346e9d1b9ea529d88722dce5ad97b2ea633b8330
+Author: Maya Spivak <mspivak@codeaurora.org>
+
+    rcu-tree: Check for extended quiescent state at start of gp
+
+commit bba2cef591729fa72dd164fa11a88f66e7044020
+Author: Maya Spivak <mspivak@codeaurora.org>
+
+    printk: Don't allow cpu to get console lock during hotplugging
+
+commit 4c990b7108099a35250d1b2e9204284b1157cd10
+Author: Maya Spivak <mspivak@codeaurora.org>
+
+    cpu-hotplug: Add the function 'cpu_hotplug_inprogress'
+
+commit fd7ec4d87a37a181d8b7975ba137d7123e650c2b
+Author: Ming Lei <tom.leiming@gmail.com>
+
+    init/main.c: execute lockdep_init as early as possible
+
+commit dfe4a47b6bc1179f3d796820ed7d8e3250392226
+Author: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+
+    CPU hotplug, PM: Remove unused symbol 'suspend_cpu_hotplug'
+
+commit 2861efe2b96a635e1a099e800519c91ffd2d0167
+Author: Carsten Emde <C.Emde@osadl.org>
+
+    kernel: Set the command name of the idle tasks in SMP kernels v3
+
+commit 51f98dd77752671549379684449d2f8ca4a64b12
+Author: Sumit Bhattacharya <sumitb@nvidia.com>
+
+    ARM/mm: drop GFP_COMP for dma_alloc_coherent
+
+commit 87409de92f82baa66fff1e99041257cfc26d6ea5
+Author: Chia-chi Yeh <chiachi@android.com>
+
+    net: Reorder incoming packets in PPPoLAC and PPPoPNS.
+
+commit 0806377366d55c5b8c2feb5594a6916885460eb3
+Author: Todd Poynor <toddpoynor@google.com>
+
+    PM: wakelocks: Display wakelocks preventing suspend by default
+
+commit 1332130b75ca790b7b713a55d0709ed6cdd4b777
+Author: Todd Poynor <toddpoynor@google.com>
+
+    PM: wakelocks: Don't report wake up wakelock if suspend aborted
+
+commit fd9b0189f4fc28f79041f9ca5dd1bc0f3f80436d
+Author: Brent DeGraaf <bdegraaf@codeaurora.org>
+
+    arm: Implement ticket spin-locks
+
+commit 688e35e7e5b22b2aa00ab14a8baa7eb5dea79677
+Author: Lasse Collin <lasse.collin@tukaani.org>
+
+    Decompressors: Get rid of set_error_fn() macro
+
+commit f698f677acada77ae1cac3327ec679f9fd3c039a
+Author: faux123 <reioux@gmail.com>
+
+    ARM: 6428/1: add cpu_idle_wait() to support CPUidle on SMP systems.
+
+commit cee4fac426294196440330001fdf0e9f69747d40
+Author: Brent DeGraaf <bdegraaf@codeaurora.org>
+
+    msm: Kconfig: Enable inline lock functions
+
+commit 356f9fe31916372b5b934d1b7c5c2265cf672662
+Author: faux123 <reioux@gmail.com>
+
+    crc32: Select an algorithm via kconfig
+    Allow the kernel builder to choose a crc32* algorithm for the kernel.
+
+commit 285ba4c1408c4ea6fbc20ec4e9ec7431d35e34af
+Author: faux123 <reioux@gmail.com>
+
+    crypto: crc32c should use library implementation
+    Since lib/crc32.c now provides crc32c, remove the software implementation here
+    and call the library function instead.
+
+commit 04894b4760235223a1ecbcfdf6b8130e8d64fea5
+Author: faux123 <reioux@gmail.com>
+
+    crc32: Add self-test code for crc32c
+    Add self-test code for crc32c.
+
+commit 3cfe42da46d2b3cca87c3ec3e70d285092a34b34
+Author: faux123 <reioux@gmail.com>
+
+    crc32: Bolt on crc32c
+    Reuse the existing crc32 code to stamp out a crc32c implementation.
+
+commit d46904b7a6afeed53d9f751efdc641b6d6119e53
+Author: faux123 <reioux@gmail.com>
+
+    crc32-final.diff
+    Some final changes
+    	- added a comment at the top of crc32.c
+
+commit c363624760526dd186320a99c10041048c791b7b
+Author: faux123 <reioux@gmail.com>
+
+    crc32-optimize-loops-for-x86.diff
+    Add two changes that improve the performance of x86 systems
+    	1. replace main loop with incrementing counter
+    	   this change improves the performance of the selftest
+    	   by about 5-6% on Nehalem CPUs. The apparent
+    	   reason is that the compiler can use the loop index
+    	   to perform an indexed memory access. This is
+    	   reported to make the performance of PowerPC CPUs
+    	   to get worse.
+    	2. replace the rem_len loop with incrementing counter
+    	   this change improves the performance of the selftest,
+    	   which has more than the usual number of occurances,
+    	   by about 1-2% on x86 CPUs. In actual work loads
+    	   the length is most often a multiple of 4 bytes and
+    	   this code does not get executed as often if at all.
+    	   Again this change is reported to make the performance
+    	   of PowerPC get worse.
+
+commit d6dcc9eef21785c5cd72366779444f30919f6765
+Author: faux123 <reioux@gmail.com>
+
+    crc32-add-slicing-by-8.diff
+    add slicing-by-8 algorithm to the existing
+    slicing-by-4 algorithm. This consists of:
+    	- extend largest BITS size from 32 to 64
+    	- extend tables from tab[4][256] to up to tab[8][256]
+    	- Add code for inner loop.
+
+commit 5df3762c7946e33397bbbb743457cff68915db1e
+Author: faux123 <reioux@gmail.com>
+
+    crc32-add-real-8-bit.diff
+    crc32.c provides a choice of one of several algorithms for
+    computing the LSB and LSB versions of the CRC32 checksum
+    based on the parameters CRC_LE_BITS and CRC_BE_BITS. In the
+    original version the values 1, 2, 4 and 8 respectively selected
+    versions of the alrogithm that computed the crc 1, 2, 4 and 32
+    bits as a time. This patch series adds a new version that computes
+    the CRC 64 bits at a time. To make things easier to understand
+    the parameter has been reinterpreted to actually stand for the
+    number of bits processed in each step of the algorithm so that
+    the old value 8 has been replaced with the value 32. This also
+    allows us to add in a widely used crc algorithm that
+    computes the crc 8 bits at a time called the Sarwate algorithm.
+
+commit 4c8fb1bad27f7e8e2e8d04e4d62bf302fe0dbcea
+Author: faux123 <reioux@gmail.com>
+
+    crc32-fix-check-endian-warnings.diff
+    crc32.c in its original version freely mixed u32, __le32 and __be32 types
+    which caused warnings from sparse with __CHECK_ENDIAN__.
+    This patch fixes these by forcing the types to u32.
+
+commit 34d21ef685e1ecdb8b249bad405ef0c11573efd2
+Author: faux123 <reioux@gmail.com>
+
+    crc32-misc-cleanup.diff
+    Misc cleanup of lib/crc32.c and related files
+    	- removed unnecessary header files.
+    	- straightened out some convoluted ifdef's
+    	- rewrote some references to 2 dimensional arrays as 1 dimensional
+    	  arrays to make them correct. I.e. replaced tab[i] with tab[0][i].
+    	- a few trivial whitespace changes
+    	- fixed a warning in gen_crc32tables.c caused by a mismatch in the
+    	  type of the pointer passed to output table. Since the table is
+    	  only used at kernel compile time, it is simpler to make the table
+    	  big enough to hold the largest column size used. One cannot make the
+    	  column size smaller in output_table because it has to be used by
+    	  both the le and be tables and they can have different column sizes.
+
+commit a4cfeb1bdff9a5b0c613148de7a98dd174b55b63
+Author: faux123 <reioux@gmail.com>
+
+    crc32-add-pointer-to-tab.diff
+    Replace 2D array references by pointer references in loops.
+    This change has no effect on X86 code but improves PPC
+    performance.
+
+commit 25eea970e73d246d57c9bde39ff7b3a9265bc40f
+Author: faux123 <reioux@gmail.com>
+
+    crc32-replace-self-test.diff
+    Replaced the unit test provided in crc32.c, which doesn't have a
+    makefile and doesn't compile with current headers, with a simpler
+    self test routine that also gives a measure of performance and
+    runs at module init time. The self test option can be enabled
+    through a configuration option CONFIG_CRC32_SELFTEST.
+
+commit 7acebbf9484c691456bfa1f05b6d2360b10bf7ef
+Author: faux123 <reioux@gmail.com>
+
+    crc32-move-to-documentation.diff
+    Moved a long comment from lib/crc32.c to Documentation/crc32.txt
+    where it will more likely get read.
+    	- Edited the resulting document to add an explanation of the slicing-by-n
+    	  algorithm.
+
+commit 4d7b7a175c1336537040c8727f5ac6b0ab32dd82
+Author: faux123 <reioux@gmail.com>
+
+    crc32-remove-trailing-whitespace.diff
+    removed two instances of trailing whitespaces
+    	- remove trailing whitespace from lib/crc32.c
+    	- remove trailing whitespace from lib/crc32defs.h
+
+commit bf86b1e35668a287afa3bd3159b9b3f6cd033dd7
+Author: faux123 <reioux@gmail.com>
+
+    ARM: support XZ compressed kernels
+
+commit a6a70c227a0c563b9a57b4e5e0c68fcd87320485
+Author: faux123 <reioux@gmail.com>
+
+    Squashfs: Add XZ compression configuration option
+
+commit 38e12abd0e73889d7e0b4507fcd83982ccc26d69
+Author: faux123 <reioux@gmail.com>
+
+    Squashfs: add XZ compression support
+
+commit c163ec9984f1fd4d5751049830381e7f6b576d36
+Author: faux123 <reioux@gmail.com>
+
+    decompressors: add boot-time XZ support
+
+commit 35e02ba5fc9a0998639762aa2f5095a4a3d01f14
+Author: faux123 <reioux@gmail.com>
+
+    decompressors: add XZ decompressor module
+
+commit 6cdfa104c9afa5adcc4db39e71a02bf381dbcf05
+Author: faux123 <reioux@gmail.com>
+
+    CFS Auto Group V2 - Changes since last:
+    - switch to per session vs tty
+    - make autogroups visible in /proc/sched_debug
+    - make autogroups visible in /proc/<pid>/autogroup
+    - add nice level bandwidth tweakability to /proc/<pid>/autogroup
+
+commit c9cd94c64371a111e9db319cc28debbc69e7d48d
+Author: faux123 <reioux@gmail.com>
+
+    Added NEON and other Snapdragon optimizations
+
+commit 1595344a4b8951316697fea431592153dd856763
+Author: faux123 <reioux@gmail.com>
+
+    patch: Add BFQ I/O scheduler by Paolo Valente
+
+commit caa3a68a3b58322776d2a4745524b0045da2562c
+Author: faux123 <reioux@gmail.com>
+
+    patch: add SLQB memory allocator by Nick Piggin
+
+commit b10b23a304c546515a94759bc6be7fd95f1f12ee
+Author: faux123 <reioux@gmail.com>
+
+    kernel patch: 2.6.35.13 -> 2.6.35.14
+
+commit 92bd2ebb3f00603fa1838e420ba5bbc9ce9db8d4
+Author: faux123 <reioux@gmail.com>
+
+    kernel patch: 2.6.35.12 -> 2.6.35.13
+
+commit 1b7f1f03a28f654af13fbe3fa154ff89646853ee
+Author: faux123 <reioux@gmail.com>
+
+    kernel patch: 2.6.35.11 -> 2.6.35.12
+
+commit 3bbb3d17ee49f94379c4d6f68d9b86df937758dc
+Author: faux123 <reioux@gmail.com>
+
+    board:acpuclock: restore to stock conditions
+
+commit 64fdd6e202bcba4e499971d1e68fd41cfb92503e
+Author: faux123 <reioux@gmail.com>
+
+    compilation: remove all generated files from repo
+
+commit b31ba69793d986f93eac2b40eb62a96d58718d15
+Author: faux123 <reioux@gmail.com>
+
+    git: updated gitignore
+
+commit 9b16d66188c98daf19ce941f2210f69c16149847
+Author: faux123 <reioux@gmail.com>
+
+    compilation: re-basline using Romanbb's source tree
+
+commit 691fe6ad04badb709306cb1be50b3b56e77d22c1
+Author: Roman Birg <romanbirg@gmail.com>
+
+    initial commit
