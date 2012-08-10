@@ -25,6 +25,9 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#ifdef CONFIG_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
 
 /*
  * dbs is used in this file as a shortform for demandbased switching
@@ -55,6 +58,10 @@
 #define MIN_SAMPLING_RATE_RATIO			(2)
 
 static unsigned int min_sampling_rate;
+#ifdef CONFIG_EARLYSUSPEND
+bool screen_is_on = true;
+static unsigned long stored_sampling_rate;
+#endif
 
 #define LATENCY_MULTIPLIER			(1000)
 #define MIN_LATENCY_MULTIPLIER			(100)
@@ -1060,6 +1067,31 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	return 0;
 }
 
+#ifdef CONFIG_EARLYSUSPEND
+static void cpufreq_ondemand_early_suspend(struct early_suspend *h)
+{
+	mutex_lock(&dbs_mutex);
+	screen_is_on = false;
+	stored_sampling_rate = min_sampling_rate;
+	min_sampling_rate = MICRO_FREQUENCY_MIN_SAMPLE_RATE * 6;
+	mutex_unlock(&dbs_mutex);
+}
+
+static void cpufreq_ondemand_late_resume(struct early_suspend *h)
+{
+	mutex_lock(&dbs_mutex);
+	min_sampling_rate = stored_sampling_rate;
+	screen_is_on = true;
+	mutex_unlock(&dbs_mutex);
+}
+
+static struct early_suspend cpufreq_ondemand_early_suspend_info = {
+	.suspend = cpufreq_ondemand_early_suspend,
+	.resume = cpufreq_ondemand_late_resume,
+	.level = EARLY_SUSPEND_LEVEL_DISABLE_FB,
+};
+#endif
+
 static int __init cpufreq_gov_dbs_init(void)
 {
 	cputime64_t wall;
@@ -1095,12 +1127,18 @@ static int __init cpufreq_gov_dbs_init(void)
 		INIT_WORK(&per_cpu(dbs_refresh_work, i), dbs_refresh_callback);
 	}
 
+#ifdef CONFIG_EARLYSUSPEND
+	register_early_suspend(&cpufreq_ondemand_early_suspend_info);
+#endif
 	return cpufreq_register_governor(&cpufreq_gov_ondemand);
 }
 
 static void __exit cpufreq_gov_dbs_exit(void)
 {
 	cpufreq_unregister_governor(&cpufreq_gov_ondemand);
+#ifdef CONFIG_EARLYSUSPEND
+	unregister_early_suspend(&cpufreq_ondemand_early_suspend_info);
+#endif
 	destroy_workqueue(input_wq);
 }
 
