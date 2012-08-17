@@ -138,6 +138,7 @@ static struct dbs_tuners {
 	!defined(CONFIG_SEC_DVFS_UNI)
 static struct early_suspend cpufreq_gov_early_suspend;
 static unsigned int cpufreq_gov_lcd_status;
+static unsigned long stored_sampling_rate;
 #endif
 
 static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
@@ -1078,16 +1079,21 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 	!defined(CONFIG_SEC_DVFS_UNI)
 static void cpufreq_gov_suspend(struct early_suspend *h)
 {
+	mutex_lock(&dbs_mutex);
 	cpufreq_gov_lcd_status = 0;
-
 	pr_info("%s : cpufreq_gov_lcd_status %d\n", __func__, cpufreq_gov_lcd_status);
+	stored_sampling_rate = min_sampling_rate;
+	min_sampling_rate = MICRO_FREQUENCY_MIN_SAMPLE_RATE * 6;
+	mutex_unlock(&dbs_mutex);
 }
 
 static void cpufreq_gov_resume(struct early_suspend *h)
 {
+	mutex_lock(&dbs_mutex);
+	min_sampling_rate = stored_sampling_rate;
 	cpufreq_gov_lcd_status = 1;
-
 	pr_info("%s : cpufreq_gov_lcd_status %d\n", __func__, cpufreq_gov_lcd_status);
+	mutex_unlock(&dbs_mutex);
 }
 #endif
 
