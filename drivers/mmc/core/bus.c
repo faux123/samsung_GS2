@@ -120,14 +120,14 @@ static int mmc_bus_remove(struct device *dev)
 	return 0;
 }
 
-static int mmc_bus_suspend(struct device *dev, pm_message_t state)
+static int mmc_bus_suspend(struct device *dev)
 {
 	struct mmc_driver *drv = to_mmc_driver(dev->driver);
 	struct mmc_card *card = mmc_dev_to_card(dev);
 	int ret = 0;
 
 	if (dev->driver && drv->suspend)
-		ret = drv->suspend(card, state);
+		ret = drv->suspend(card);
 	return ret;
 }
 
@@ -163,19 +163,19 @@ static int mmc_runtime_idle(struct device *dev)
 	return pm_runtime_suspend(dev);
 }
 
+#else /* !CONFIG_PM_RUNTIME */
+#define mmc_runtime_suspend	NULL
+#define mmc_runtime_resume	NULL
+#define mmc_runtime_idle	NULL
+#endif /* !CONFIG_PM_RUNTIME */
+
 static const struct dev_pm_ops mmc_bus_pm_ops = {
 	.runtime_suspend	= mmc_runtime_suspend,
 	.runtime_resume		= mmc_runtime_resume,
 	.runtime_idle		= mmc_runtime_idle,
+	.suspend		= mmc_bus_suspend,
+	.resume			= mmc_bus_resume,
 };
-
-#define MMC_PM_OPS_PTR	(&mmc_bus_pm_ops)
-
-#else /* !CONFIG_PM_RUNTIME */
-
-#define MMC_PM_OPS_PTR	NULL
-
-#endif /* !CONFIG_PM_RUNTIME */
 
 static struct bus_type mmc_bus_type = {
 	.name		= "mmc",
@@ -184,9 +184,7 @@ static struct bus_type mmc_bus_type = {
 	.uevent		= mmc_bus_uevent,
 	.probe		= mmc_bus_probe,
 	.remove		= mmc_bus_remove,
-	.suspend	= mmc_bus_suspend,
-	.resume		= mmc_bus_resume,
-	.pm		= MMC_PM_OPS_PTR,
+	.pm		= &mmc_bus_pm_ops,
 };
 
 int mmc_register_bus(void)
@@ -265,6 +263,7 @@ int mmc_add_card(struct mmc_card *card)
 {
 	int ret;
 	const char *type;
+	const char *uhs_bus_speed_mode = "";
 
 	dev_set_name(&card->dev, "%s:%04x", mmc_hostname(card->host), card->rca);
 
@@ -294,6 +293,28 @@ int mmc_add_card(struct mmc_card *card)
 		break;
 	}
 
+	if (mmc_sd_card_uhs(card)) {
+		switch (card->sd_bus_speed) {
+		case UHS_SDR104_BUS_SPEED:
+			uhs_bus_speed_mode = "SDR104 ";
+			break;
+		case UHS_SDR50_BUS_SPEED:
+			uhs_bus_speed_mode = "SDR50 ";
+			break;
+		case UHS_DDR50_BUS_SPEED:
+			uhs_bus_speed_mode = "DDR50 ";
+			break;
+		case UHS_SDR25_BUS_SPEED:
+			uhs_bus_speed_mode = "SDR25 ";
+			break;
+		case UHS_SDR12_BUS_SPEED:
+			uhs_bus_speed_mode = "SDR12 ";
+			break;
+		default:
+			uhs_bus_speed_mode = "";
+			break;
+		}
+	}
 	if (mmc_host_is_spi(card->host)) {
 		printk(KERN_INFO "%s: new %s%s%s card on SPI\n",
 			mmc_hostname(card->host),
@@ -301,11 +322,12 @@ int mmc_add_card(struct mmc_card *card)
 			mmc_card_ddr_mode(card) ? "DDR " : "",
 			type);
 	} else {
-		printk(KERN_INFO "%s: new %s%s%s card at address %04x\n",
+		pr_info("%s: new %s%s%s%s card at address %04x\n",
 			mmc_hostname(card->host),
 			mmc_sd_card_uhs(card) ? "ultra high speed " :
 			(mmc_card_highspeed(card) ? "high speed " : ""),
 			mmc_card_ddr_mode(card) ? "DDR " : "",
+			uhs_bus_speed_mode,
 			type, card->rca);
 	}
 

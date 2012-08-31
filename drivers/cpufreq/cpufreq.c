@@ -31,6 +31,28 @@
 #include <linux/syscore_ops.h>
 
 #include <trace/events/power.h>
+#include <linux/semaphore.h>
+
+/* Description of __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
+ *
+ * When the kobject of cpufreq's ref count is zero in show/store function,
+ * cpufreq_cpu_put() causes a deadlock because the active count of the
+ * accessing file is incremented just before calling show/store at
+ * fill_read(write)_buffer.
+ * (This happens when show/store is called first and then the cpu_down is called
+ * before the show/store function is finished)
+ * So basically, cpufreq_cpu_put() in show/store must not release the kobject
+ * of cpufreq. To make sure that kobj ref count of the cpufreq is not 0 in this
+ * case, a per cpu mutex is used.
+ * This per cpu mutex wraps the whole show/store function and kobject_put()
+ * function in __cpufreq_remove_dev().
+ */
+ #define __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
+
+
+#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
+static DEFINE_PER_CPU(struct mutex, cpufreq_remove_mutex);
+#endif
 
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
@@ -41,7 +63,11 @@ static struct cpufreq_driver *cpufreq_driver;
 static DEFINE_PER_CPU(struct cpufreq_policy *, cpufreq_cpu_data);
 #ifdef CONFIG_HOTPLUG_CPU
 /* This one keeps track of the previously set governor of a removed CPU */
-static DEFINE_PER_CPU(char[CPUFREQ_NAME_LEN], cpufreq_cpu_governor);
+struct cpufreq_cpu_save_data {
+	char gov[CPUFREQ_NAME_LEN];
+	unsigned int max, min;
+};
+static DEFINE_PER_CPU(struct cpufreq_cpu_save_data, cpufreq_policy_save);
 #endif
 static DEFINE_SPINLOCK(cpufreq_driver_lock);
 
@@ -68,7 +94,7 @@ static DEFINE_PER_CPU(int, cpufreq_policy_cpu);
 static DEFINE_PER_CPU(struct rw_semaphore, cpu_policy_rwsem);
 
 #define lock_policy_rwsem(mode, cpu)					\
-static int lock_policy_rwsem_##mode					\
+int lock_policy_rwsem_##mode						\
 (int cpu)								\
 {									\
 	int policy_cpu = per_cpu(cpufreq_policy_cpu, cpu);		\
@@ -93,7 +119,7 @@ static void unlock_policy_rwsem_read(int cpu)
 	up_read(&per_cpu(cpu_policy_rwsem, policy_cpu));
 }
 
-static void unlock_policy_rwsem_write(int cpu)
+void unlock_policy_rwsem_write(int cpu)
 {
 	int policy_cpu = per_cpu(cpufreq_policy_cpu, cpu);
 	BUG_ON(policy_cpu == -1);
@@ -176,6 +202,26 @@ void cpufreq_cpu_put(struct cpufreq_policy *data)
 }
 EXPORT_SYMBOL_GPL(cpufreq_cpu_put);
 
+#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
+/* just peek to see if the cpufreq policy is available.
+ * The caller must hold cpufreq_driver_lock
+ */
+struct cpufreq_policy *cpufreq_cpu_peek(unsigned int cpu)
+{
+	struct cpufreq_policy *data;
+
+	if (cpu >= nr_cpu_ids)
+		return NULL;
+
+	if (!cpufreq_driver)
+		return NULL;
+
+	/* get the CPU */
+	data = per_cpu(cpufreq_cpu_data, cpu);
+
+	return data;
+}
+#endif
 
 /*********************************************************************
  *            EXTERNALLY AFFECTING FREQUENCY CHANGES                 *
@@ -393,7 +439,30 @@ static ssize_t store_##file_name					\
 }
 
 store_one(scaling_min_freq, min);
+#ifdef CONFIG_SEC_DVFS
+static ssize_t store_scaling_max_freq
+(struct cpufreq_policy *policy, const char *buf, size_t count)
+{									
+	unsigned int ret = -EINVAL;
+	unsigned int value = 0;
+	
+	ret = sscanf(buf, "%u", &value);
+	if (ret != 1)							
+		return -EINVAL;
+
+	if (policy->cpu == BOOT_CPU) 
+{									
+		if (value >= MAX_FREQ_LIMIT)
+			set_freq_limit(DVFS_THERMALD_ID, -1);
+		else if (value >= MIN_FREQ_LIMIT)
+			set_freq_limit(DVFS_THERMALD_ID, value);
+	}
+
+	return count;
+}
+#else
 store_one(scaling_max_freq, max);
+#endif
 
 /**
  * show_cpuinfo_cur_freq - current CPU frequency as detected by hardware
@@ -609,6 +678,27 @@ static ssize_t show(struct kobject *kobj, struct attribute *attr, char *buf)
 	struct cpufreq_policy *policy = to_policy(kobj);
 	struct freq_attr *fattr = to_attr(attr);
 	ssize_t ret = -EINVAL;
+#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
+	unsigned int cpu;
+	unsigned long flags;
+#endif
+
+#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
+	spin_lock_irqsave(&cpufreq_driver_lock, flags);
+	policy = cpufreq_cpu_peek(policy->cpu);
+	if (!policy) {
+		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
+		return -EINVAL;
+	}
+	cpu = policy->cpu;
+	if (mutex_trylock(&per_cpu(cpufreq_remove_mutex, cpu)) == 0) {
+		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
+		pr_info("!WARN %s failed because cpu%u is going down\n",
+			__func__, cpu);
+		return -EINVAL;
+	}
+	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
+#endif
 	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
 		goto no_policy;
@@ -625,6 +715,9 @@ static ssize_t show(struct kobject *kobj, struct attribute *attr, char *buf)
 fail:
 	cpufreq_cpu_put(policy);
 no_policy:
+#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
+	mutex_unlock(&per_cpu(cpufreq_remove_mutex, cpu));
+#endif
 	return ret;
 }
 
@@ -634,6 +727,27 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 	struct cpufreq_policy *policy = to_policy(kobj);
 	struct freq_attr *fattr = to_attr(attr);
 	ssize_t ret = -EINVAL;
+#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
+	unsigned int cpu;
+	unsigned long flags;
+#endif
+
+#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
+	spin_lock_irqsave(&cpufreq_driver_lock, flags);
+	policy = cpufreq_cpu_peek(policy->cpu);
+	if (!policy) {
+		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
+		return -EINVAL;
+	}
+	cpu = policy->cpu;
+	if (mutex_trylock(&per_cpu(cpufreq_remove_mutex, cpu)) == 0) {
+		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
+		pr_info("!WARN %s failed because cpu%u is going down\n",
+			__func__, cpu);
+		return -EINVAL;
+	}
+	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
+#endif
 	policy = cpufreq_cpu_get(policy->cpu);
 	if (!policy)
 		goto no_policy;
@@ -650,6 +764,9 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 fail:
 	cpufreq_cpu_put(policy);
 no_policy:
+#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
+	mutex_unlock(&per_cpu(cpufreq_remove_mutex, cpu));
+#endif
 	return ret;
 }
 
@@ -688,12 +805,22 @@ static int cpufreq_add_dev_policy(unsigned int cpu,
 #ifdef CONFIG_HOTPLUG_CPU
 	struct cpufreq_governor *gov;
 
-	gov = __find_governor(per_cpu(cpufreq_cpu_governor, cpu));
+	gov = __find_governor(per_cpu(cpufreq_policy_save, cpu).gov);
 	if (gov) {
 		policy->governor = gov;
 		pr_debug("Restoring governor %s for cpu %d\n",
 		       policy->governor->name, cpu);
 	}
+	if (per_cpu(cpufreq_policy_save, cpu).min) {
+		policy->min = per_cpu(cpufreq_policy_save, cpu).min;
+		policy->user_policy.min = policy->min;
+	}
+	if (per_cpu(cpufreq_policy_save, cpu).max) {
+		policy->max = per_cpu(cpufreq_policy_save, cpu).max;
+		policy->user_policy.max = policy->max;
+	}
+	pr_debug("Restoring CPU%d min %d and max %d\n",
+		cpu, policy->min, policy->max);
 #endif
 
 	for_each_cpu(j, policy->cpus) {
@@ -1043,8 +1170,12 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 #ifdef CONFIG_SMP
 
 #ifdef CONFIG_HOTPLUG_CPU
-	strncpy(per_cpu(cpufreq_cpu_governor, cpu), data->governor->name,
+	strncpy(per_cpu(cpufreq_policy_save, cpu).gov, data->governor->name,
 			CPUFREQ_NAME_LEN);
+	per_cpu(cpufreq_policy_save, cpu).min = data->min;
+	per_cpu(cpufreq_policy_save, cpu).max = data->max;
+	pr_debug("Saving CPU%d policy min %d and max %d\n",
+			cpu, data->min, data->max);
 #endif
 
 	/* if we have other CPUs still registered, we need to unlink them,
@@ -1068,8 +1199,12 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 				continue;
 			pr_debug("removing link for cpu %u\n", j);
 #ifdef CONFIG_HOTPLUG_CPU
-			strncpy(per_cpu(cpufreq_cpu_governor, j),
+			strncpy(per_cpu(cpufreq_policy_save, j).gov,
 				data->governor->name, CPUFREQ_NAME_LEN);
+			per_cpu(cpufreq_policy_save, j).min = data->min;
+			per_cpu(cpufreq_policy_save, j).max = data->max;
+			pr_debug("Saving CPU%d policy min %d and max %d\n",
+					j, data->min, data->max);
 #endif
 			cpu_sys_dev = get_cpu_sysdev(j);
 			kobj = &cpu_sys_dev->kobj;
@@ -1089,8 +1224,13 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 	kobj = &data->kobj;
 	cmp = &data->kobj_unregister;
 	unlock_policy_rwsem_write(cpu);
+#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
+	mutex_lock(&per_cpu(cpufreq_remove_mutex, cpu));
+#endif
 	kobject_put(kobj);
-
+#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
+	mutex_unlock(&per_cpu(cpufreq_remove_mutex, cpu));
+#endif
 	/* we need to make sure that the underlying kobj is actually
 	 * not referenced anymore by anybody before we proceed with
 	 * unloading.
@@ -1555,8 +1695,11 @@ void cpufreq_unregister_governor(struct cpufreq_governor *governor)
 	for_each_present_cpu(cpu) {
 		if (cpu_online(cpu))
 			continue;
-		if (!strcmp(per_cpu(cpufreq_cpu_governor, cpu), governor->name))
-			strcpy(per_cpu(cpufreq_cpu_governor, cpu), "\0");
+		if (!strcmp(per_cpu(cpufreq_policy_save, cpu).gov,
+					governor->name))
+			strcpy(per_cpu(cpufreq_policy_save, cpu).gov, "\0");
+		per_cpu(cpufreq_policy_save, cpu).min = 0;
+		per_cpu(cpufreq_policy_save, cpu).max = 0;
 	}
 #endif
 
@@ -1753,6 +1896,31 @@ static int __cpuinit cpufreq_cpu_callback(struct notifier_block *nfb,
 		case CPU_ONLINE:
 		case CPU_ONLINE_FROZEN:
 			cpufreq_add_dev(sys_dev);
+#ifdef CONFIG_SEC_DVFS
+			if (cpu == NON_BOOT_CPU)
+			{
+#ifndef CONFIG_SEC_DVFS_UNI
+				unsigned int cur, min, max;
+				
+				/* get current freq & update now */
+				min = get_min_lock();
+				max = get_max_lock();
+				cur = cpufreq_quick_get(cpu);
+				if (cur)
+				{
+					struct cpufreq_policy policy;
+					policy.cpu = cpu;
+
+					if (min && cur < min)
+						cpufreq_driver_target(&policy, min, CPUFREQ_RELATION_H);
+					else if (max && cur > max)
+						cpufreq_driver_target(&policy, max, CPUFREQ_RELATION_L);
+				}
+#else
+				set_freq_limit(DVFS_UNICPU_ID, -1);
+#endif
+			}
+#endif
 			break;
 		case CPU_DOWN_PREPARE:
 		case CPU_DOWN_PREPARE_FROZEN:
@@ -1760,6 +1928,10 @@ static int __cpuinit cpufreq_cpu_callback(struct notifier_block *nfb,
 				BUG();
 
 			__cpufreq_remove_dev(sys_dev);
+#ifdef CONFIG_SEC_DVFS_UNI
+			if (cpu == NON_BOOT_CPU)
+				set_freq_limit(DVFS_UNICPU_ID, 0);
+#endif			
 			break;
 		case CPU_DOWN_FAILED:
 		case CPU_DOWN_FAILED_FROZEN:
@@ -1864,7 +2036,7 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 
 	if (!cpufreq_driver || (driver != cpufreq_driver))
 		return -EINVAL;
-
+	
 	pr_debug("unregistering driver %s\n", driver->name);
 
 	sysdev_driver_unregister(&cpu_sysdev_class, &cpufreq_sysdev_driver);
@@ -1885,6 +2057,9 @@ static int __init cpufreq_core_init(void)
 	for_each_possible_cpu(cpu) {
 		per_cpu(cpufreq_policy_cpu, cpu) = -1;
 		init_rwsem(&per_cpu(cpu_policy_rwsem, cpu));
+#ifdef __CPUFREQ_KOBJ_DEL_DEADLOCK_FIX
+		mutex_init(&per_cpu(cpufreq_remove_mutex, cpu));
+#endif
 	}
 
 	cpufreq_global_kobject = kobject_create_and_add("cpufreq",

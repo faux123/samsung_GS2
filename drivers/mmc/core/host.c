@@ -53,6 +53,31 @@ static DEFINE_IDR(mmc_host_idr);
 static DEFINE_SPINLOCK(mmc_host_lock);
 
 #ifdef CONFIG_MMC_CLKGATE
+static ssize_t clkgate_delay_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mmc_host *host = cls_dev_to_mmc_host(dev);
+	return snprintf(buf, PAGE_SIZE, "%lu millisecs\n",
+			host->clkgate_delay);
+}
+
+static ssize_t clkgate_delay_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct mmc_host *host = cls_dev_to_mmc_host(dev);
+	unsigned long flags, value;
+
+	if (kstrtoul(buf, 0, &value))
+		return -EINVAL;
+
+	spin_lock_irqsave(&host->clk_lock, flags);
+	host->clkgate_delay = value;
+	spin_unlock_irqrestore(&host->clk_lock, flags);
+
+	pr_info("%s: clock gate delay set to %lu ms\n",
+			mmc_hostname(host), value);
+	return count;
+}
 
 /*
  * Enabling clock gating will make the core call out to the host
@@ -113,7 +138,7 @@ static void mmc_host_clk_gate_delayed(struct mmc_host *host)
 static void mmc_host_clk_gate_work(struct work_struct *work)
 {
 	struct mmc_host *host = container_of(work, struct mmc_host,
-					      clk_gate_work);
+					      clk_gate_work.work);
 
 	mmc_host_clk_gate_delayed(host);
 }
@@ -130,6 +155,8 @@ void mmc_host_clk_hold(struct mmc_host *host)
 {
 	unsigned long flags;
 
+	/* cancel any clock gating work scheduled by mmc_host_clk_release() */
+	cancel_delayed_work_sync(&host->clk_gate_work);
 	mutex_lock(&host->clk_gate_mutex);
 	spin_lock_irqsave(&host->clk_lock, flags);
 	if (host->clk_gated) {
@@ -179,7 +206,8 @@ void mmc_host_clk_release(struct mmc_host *host)
 	host->clk_requests--;
 	if (mmc_host_may_gate_card(host->card) &&
 	    !host->clk_requests)
-		queue_work(system_nrt_wq, &host->clk_gate_work);
+		queue_delayed_work(system_nrt_wq, &host->clk_gate_work,
+				msecs_to_jiffies(host->clkgate_delay));
 	spin_unlock_irqrestore(&host->clk_lock, flags);
 }
 
@@ -212,8 +240,13 @@ static inline void mmc_host_clk_init(struct mmc_host *host)
 	host->clk_requests = 0;
 	/* Hold MCI clock for 8 cycles by default */
 	host->clk_delay = 8;
+	/*
+	 * Default clock gating delay is value is 200ms.
+	 * This value can be tuned by writing into sysfs entry.
+	 */
+	host->clkgate_delay = 200;
 	host->clk_gated = false;
-	INIT_WORK(&host->clk_gate_work, mmc_host_clk_gate_work);
+	INIT_DELAYED_WORK(&host->clk_gate_work, mmc_host_clk_gate_work);
 	spin_lock_init(&host->clk_lock);
 	mutex_init(&host->clk_gate_mutex);
 }
@@ -228,7 +261,7 @@ static inline void mmc_host_clk_exit(struct mmc_host *host)
 	 * Wait for any outstanding gate and then make sure we're
 	 * ungated before exiting.
 	 */
-	if (cancel_work_sync(&host->clk_gate_work))
+	if (cancel_delayed_work_sync(&host->clk_gate_work))
 		mmc_host_clk_gate_delayed(host);
 	if (host->clk_gated)
 		mmc_host_clk_hold(host);
@@ -236,6 +269,17 @@ static inline void mmc_host_clk_exit(struct mmc_host *host)
 	WARN_ON(host->clk_requests > 1);
 }
 
+static inline void mmc_host_clk_sysfs_init(struct mmc_host *host)
+{
+	host->clkgate_delay_attr.show = clkgate_delay_show;
+	host->clkgate_delay_attr.store = clkgate_delay_store;
+	sysfs_attr_init(&host->clkgate_delay_attr.attr);
+	host->clkgate_delay_attr.attr.name = "clkgate_delay";
+	host->clkgate_delay_attr.attr.mode = S_IRUGO | S_IWUSR;
+	if (device_create_file(&host->class_dev, &host->clkgate_delay_attr))
+		pr_err("%s: Failed to create clkgate_delay sysfs entry\n",
+				mmc_hostname(host));
+}
 #else
 
 static inline void mmc_host_clk_init(struct mmc_host *host)
@@ -246,6 +290,9 @@ static inline void mmc_host_clk_exit(struct mmc_host *host)
 {
 }
 
+static inline void mmc_host_clk_sysfs_init(struct mmc_host *host)
+{
+}
 #endif
 
 /**
@@ -284,6 +331,8 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 
 	spin_lock_init(&host->lock);
 	init_waitqueue_head(&host->wq);
+	wake_lock_init(&host->detect_wake_lock, WAKE_LOCK_SUSPEND,
+		kasprintf(GFP_KERNEL, "%s_detect", mmc_hostname(host)));
 	INIT_DELAYED_WORK(&host->detect, mmc_rescan);
 	INIT_DELAYED_WORK_DEFERRABLE(&host->disable, mmc_host_deeper_disable);
 #ifdef CONFIG_PM
@@ -309,6 +358,75 @@ free:
 }
 
 EXPORT_SYMBOL(mmc_alloc_host);
+#ifdef CONFIG_MMC_PERF_PROFILING
+static ssize_t
+show_perf(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct mmc_host *host = dev_get_drvdata(dev);
+	int64_t rtime_mmcq, wtime_mmcq, rtime_drv, wtime_drv;
+	unsigned long rbytes_mmcq, wbytes_mmcq, rbytes_drv, wbytes_drv;
+
+	spin_lock(&host->lock);
+
+	rbytes_mmcq = host->perf.rbytes_mmcq;
+	wbytes_mmcq = host->perf.wbytes_mmcq;
+	rbytes_drv = host->perf.rbytes_drv;
+	wbytes_drv = host->perf.wbytes_drv;
+
+	rtime_mmcq = ktime_to_us(host->perf.rtime_mmcq);
+	wtime_mmcq = ktime_to_us(host->perf.wtime_mmcq);
+	rtime_drv = ktime_to_us(host->perf.rtime_drv);
+	wtime_drv = ktime_to_us(host->perf.wtime_drv);
+
+	spin_unlock(&host->lock);
+
+	return snprintf(buf, PAGE_SIZE, "Write performance at MMCQ Level:"
+					"%lu bytes in %lld microseconds\n"
+					"Read performance at MMCQ Level:"
+					"%lu bytes in %lld microseconds\n"
+					"Write performance at driver Level:"
+					"%lu bytes in %lld microseconds\n"
+					"Read performance at driver Level:"
+					"%lu bytes in %lld microseconds\n",
+					wbytes_mmcq, wtime_mmcq, rbytes_mmcq,
+					rtime_mmcq, wbytes_drv, wtime_drv,
+					rbytes_drv, rtime_drv);
+}
+
+static ssize_t
+set_perf(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int64_t value;
+	struct mmc_host *host = dev_get_drvdata(dev);
+
+	sscanf(buf, "%lld", &value);
+	spin_lock(&host->lock);
+	if (!value) {
+		memset(&host->perf, 0, sizeof(host->perf));
+		host->perf_enable = false;
+	} else {
+		host->perf_enable = true;
+	}
+	spin_unlock(&host->lock);
+
+	return count;
+}
+
+static DEVICE_ATTR(perf, S_IRUGO | S_IWUSR,
+		show_perf, set_perf);
+
+#endif
+
+static struct attribute *dev_attrs[] = {
+#ifdef CONFIG_MMC_PERF_PROFILING
+	&dev_attr_perf.attr,
+#endif
+	NULL,
+};
+static struct attribute_group dev_attr_grp = {
+	.attrs = dev_attrs,
+};
 
 /**
  *	mmc_add_host - initialise host hardware
@@ -334,9 +452,16 @@ int mmc_add_host(struct mmc_host *host)
 #ifdef CONFIG_DEBUG_FS
 	mmc_add_host_debugfs(host);
 #endif
+	mmc_host_clk_sysfs_init(host);
+
+	err = sysfs_create_group(&host->parent->kobj, &dev_attr_grp);
+	if (err)
+		pr_err("%s: failed to create sysfs group with err %d\n",
+							 __func__, err);
 
 	mmc_start_host(host);
-	register_pm_notifier(&host->pm_notify);
+	if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
+		register_pm_notifier(&host->pm_notify);
 
 	return 0;
 }
@@ -353,12 +478,16 @@ EXPORT_SYMBOL(mmc_add_host);
  */
 void mmc_remove_host(struct mmc_host *host)
 {
-	unregister_pm_notifier(&host->pm_notify);
+	if (!(host->pm_flags & MMC_PM_IGNORE_PM_NOTIFY))
+		unregister_pm_notifier(&host->pm_notify);
+
 	mmc_stop_host(host);
 
 #ifdef CONFIG_DEBUG_FS
 	mmc_remove_host_debugfs(host);
 #endif
+	sysfs_remove_group(&host->parent->kobj, &dev_attr_grp);
+
 
 	device_del(&host->class_dev);
 
@@ -380,6 +509,7 @@ void mmc_free_host(struct mmc_host *host)
 	spin_lock(&mmc_host_lock);
 	idr_remove(&mmc_host_idr, host->index);
 	spin_unlock(&mmc_host_lock);
+	wake_lock_destroy(&host->detect_wake_lock);
 
 	put_device(&host->class_dev);
 }
