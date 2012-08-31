@@ -758,10 +758,10 @@ void fsa9480_audiopath_control(int enable)
 		else
 			dev_info(&client->dev, "%s: does not On dock audio (dock=%d, earjack=%d)\n", __func__, Dockconnected, get_sec_det_jack_state());
 	} else {
-		//if(!Dockconnected || (Dockconnected && get_sec_det_jack_state()))
+		if(!Dockconnected || (Dockconnected && get_sec_det_jack_state()))
 			fsa9480_manual_switching(SWITCH_PORT_USB); /* dock audio path Off */
-		//else
-		//	dev_info(&client->dev, "%s: does not Off dock audio (dock=%d, earjack=%d)\n", __func__, Dockconnected, get_sec_det_jack_state());
+		else
+			dev_info(&client->dev, "%s: does not Off dock audio (dock=%d, earjack=%d)\n", __func__, Dockconnected, get_sec_det_jack_state());
 	}
 #else
 	if(enable) {

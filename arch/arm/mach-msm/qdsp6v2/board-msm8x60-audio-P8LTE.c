@@ -571,7 +571,9 @@ static int msm_snddev_amp_on_normal_speaker(void)
 #endif
 #ifdef CONFIG_WM8994_AMP
 		msleep(50);
-//		wm8994_set_normal_speaker(1);
+#if defined(CONFIG_TARGET_LOCALE_KOR) 
+		wm8994_set_normal_speaker(1);
+#endif
 #endif
 
 	 return 0;
@@ -746,7 +748,9 @@ static void msm_snddev_amp_off_normal_speaker(void)
 		max9879_i2c_speaker_onoff(0);
 #endif
 #ifdef CONFIG_WM8994_AMP
-//		wm8994_set_normal_speaker(0);
+#if defined(CONFIG_TARGET_LOCALE_KOR) 
+		wm8994_set_normal_speaker(0);
+#endif
 #endif	
 
 	return;

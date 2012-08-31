@@ -8483,7 +8483,7 @@ static void mxt540e_power_off(void)
 
 	printk("%s: enter\n", __func__);
 
-	#if 0
+	#if defined (CONFIG_USA_MODEL_SGH_I717)
 	rc = gpio_request(TOUCHSCREEN_IRQ, "tsp_irq");
 	if(!rc)
 		rc = gpio_direction_output(TOUCHSCREEN_IRQ, 1);
@@ -8578,8 +8578,8 @@ static struct mxt540e_platform_data mxt540e_data = {
 	.chrgtime_charging = MXT540E_CHRGTIME_CHRG,
 	.tchthr_batt = MXT540E_THRESHOLD_BATT,
 	.tchthr_charging = MXT540E_THRESHOLD_CHRG,
-    .actvsyncsperx_batt = MXT540E_ACTVSYNCSPERX_BATT,
-    .actvsyncsperx_charging = MXT540E_ACTVSYNCSPERX_CHRG,
+	.actvsyncsperx_batt = MXT540E_ACTVSYNCSPERX_BATT,
+	.actvsyncsperx_charging = MXT540E_ACTVSYNCSPERX_CHRG,
 	.calcfg_batt_e = MXT540E_CALCFG_BATT,
 	.calcfg_charging_e = MXT540E_CALCFG_CHRG,
 	.atchfrccalthr_e = MXT540E_ATCHFRCCALTHR_NORMAL,
@@ -8633,6 +8633,9 @@ static struct wacom_g5_platform_data wacom_platform_data = {
 	.max_y = WACOM_POSY_MAX,
 	.min_pressure = 0,
 	.max_pressure = WACOM_PRESSURE_MAX,
+#ifdef WACOM_PDCT_WORK_AROUND
+	.gpio_pendct = GPIO_PEN_PDCT,
+#endif
 	.init_platform_hw = wacom_init_hw,
 /*	.exit_platform_hw =,	*/
 	.suspend_platform_hw = wacom_suspend_hw,
@@ -8654,11 +8657,11 @@ static struct i2c_board_info wacom_g5sp_i2c_devices_info[] = {
 static unsigned wacom_gpio_on[] = {
 	GPIO_CFG(GPIO_PEN_IRQ, 	0, GPIO_CFG_INPUT, 	GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
 	GPIO_CFG(GPIO_PEN_SLP, 	0, GPIO_CFG_OUTPUT, 	GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-	GPIO_CFG(GPIO_PEN_PDCT, 	0, GPIO_CFG_INPUT, 	GPIO_CFG_PULL_UP, GPIO_CFG_2MA),
+	GPIO_CFG(GPIO_PEN_PDCT, 0, GPIO_CFG_INPUT, 	GPIO_CFG_PULL_UP, GPIO_CFG_2MA),
 #if defined(CONFIG_KOR_MODEL_SHV_E160S) || defined(CONFIG_KOR_MODEL_SHV_E160K) || defined (CONFIG_KOR_MODEL_SHV_E160L) || defined (CONFIG_JPN_MODEL_SC_05D)
 	GPIO_CFG(GPIO_PEN_LDO_EN,0, GPIO_CFG_OUTPUT, 	GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
 #endif
-	GPIO_CFG(GPIO_PEN_RESET, 	0, GPIO_CFG_OUTPUT, 	GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
+	GPIO_CFG(GPIO_PEN_RESET, 0, GPIO_CFG_OUTPUT, 	GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
 
 	GPIO_CFG(GPIO_PEN_SCL,	2, GPIO_CFG_OUTPUT, 	GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
 	GPIO_CFG(GPIO_PEN_SDA, 	2, GPIO_CFG_OUTPUT, 	GPIO_CFG_NO_PULL, GPIO_CFG_2MA),

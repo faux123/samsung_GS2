@@ -486,6 +486,7 @@ void msm_snddev_poweramp_off_headset_call(void)
 
 int msm_snddev_poweramp_on_headset(void)
 {
+	fsa9480_audiopath_control(0); /* prevent lineout sound out */
 #ifdef CONFIG_SENSORS_YDA165
 	yda165_headset_onoff(1);
 #endif

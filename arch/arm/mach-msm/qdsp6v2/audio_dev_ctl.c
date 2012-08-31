@@ -146,7 +146,7 @@ int msm_set_copp_id(int session_id, int copp_id)
 		return -EINVAL;
 
 	index = afe_get_port_index(copp_id);
-	if (index < 0 || index > AFE_MAX_PORTS)
+	if (index < 0 || index > AFE_MAX_PORTS-1)
 		return -EINVAL;
 	pr_debug("%s: session[%d] copp_id[%d] index[%d]\n", __func__,
 			session_id, copp_id, index);

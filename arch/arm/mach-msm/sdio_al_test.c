@@ -370,7 +370,7 @@ static int sdio_al_test_extract_number(const char __user *buf,
 {
 	int ret = 0;
 	int number = -1;
-	char local_buf[MAX_STR_SIZE] = {0};
+	char local_buf[MAX_STR_SIZE+1] = {0};
 	char *start = NULL;
 
 	if (count > MAX_STR_SIZE) {

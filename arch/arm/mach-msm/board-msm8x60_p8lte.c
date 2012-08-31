@@ -157,6 +157,9 @@
 #ifdef CONFIG_SAMSUNG_JACK
 #include <linux/sec_jack.h>
 #endif
+#ifdef CONFIG_SAMSUNG_EARJACK
+#include <linux/sec_earjack.h>
+#endif
 #include <mach/sec_switch.h>
 #include <linux/usb/gadget.h>
 
@@ -198,13 +201,16 @@
 #define PMIC_GPIO_PS_VOUT		PM8058_GPIO(14) 	/* PMIC GPIO Number 14 */
 #endif
 
-#ifdef CONFIG_SAMSUNG_JACK
+#if defined(CONFIG_SAMSUNG_JACK) || defined (CONFIG_SAMSUNG_EARJACK)
 #define PMIC_GPIO_EAR_DET		PM8058_GPIO(27)  	/* PMIC GPIO Number 27 */
 #define PMIC_GPIO_SHORT_SENDEND	PM8058_GPIO(30)  	/* PMIC GPIO Number 30 */
 #define PMIC_GPIO_MUTE_CON		PM8058_GPIO(26)  	/* PMIC GPIO Number 26 */
 #define PMIC_GPIO_EAR_MICBIAS_EN PM8058_GPIO(17) /* PMIC GPIO Number 17  */
-#endif   //CONFIG_SAMSUNG_JACK
+#endif   //CONFIG_SAMSUNG_JACK || CONFIG_SAMSUNG_EARJACK
 #define PMIC_GPIO_MAIN_MICBIAS_EN PM8058_GPIO(28)
+#if defined(CONFIG_KOR_MODEL_SHV_E150S) //kth_1100922
+#define PMIC_GPIO_SUB_MICBIAS_EN PM8058_GPIO(37)
+#endif
 
 #ifdef CONFIG_ATHEROS_WIFI 
 #define WLAN_HOST_WAKE
@@ -236,11 +242,18 @@ static struct platform_device ion_dev;
 #define GPIO_WLAN_NRST		158          //WLAN_nRST
 #endif
 
+#ifdef CONFIG_KOR_OPERATOR_SKT 
+#define GPIO_BT_WAKE        94  // nc, don't use
+#else
 #define GPIO_BT_WAKE        86
+#endif
 #define GPIO_BT_HOST_WAKE   127
 
+#ifdef CONFIG_KOR_OPERATOR_SKT
+#define GPIO_BT_REG_ON 0  // wlan_nRST, don't use
+#else
 #define GPIO_BT_REG_ON 158	//WLAN_BT_EN
-
+#endif
 #define GPIO_BT_RESET       46
 
 #define GPIO_BT_UART_RTS    56
@@ -287,13 +300,21 @@ static struct platform_device ion_dev;
 #define GPIO_MHL_SDA	64
 #define GPIO_ACCESSORY_INT		123
 #define HDMI_HPD_IRQ 			172  
+#ifdef CONFIG_KOR_OPERATOR_SKT
+#define PMIC_GPIO_ACCESSORY_CHECK		PM8058_GPIO(13)
+#else
 #define PMIC_GPIO_ACCESSORY_CHECK		PM8058_GPIO(4)
+#endif
 #define PMIC_GPIO_ACCESSORY_CHECK_04	PM8058_GPIO(13)
 #define PMIC_GPIO_ACCESSORY_EN		PM8058_GPIO(32)
 #define PMIC_GPIO_DOCK_INT				PM8058_GPIO(29)
 #define PMIC_GPIO_MHL_RST				PM8058_GPIO(15) 
 #define GPIO_MHL_RST					PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_MHL_RST)
+#ifdef CONFIG_KOR_OPERATOR_SKT
 #define PMIC_GPIO_MHL_INT				PM8058_GPIO(31)
+#else
+#define PMIC_GPIO_MHL_INT				PM8058_GPIO(9)
+#endif
 #endif
 
 #define UART_SEL_SW          58
@@ -1230,12 +1251,14 @@ static void qc_acc_power(u8 token, bool active)
 
 	gpio_acc_en = PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_ACCESSORY_EN);
 	gpio_request(gpio_acc_en, "accessory_en");
-
+#ifdef CONFIG_KOR_OPERATOR_SKT
+	gpio_acc_5v = PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_ACCESSORY_CHECK);
+#else
 	if (system_rev < 0x04)
 		gpio_acc_5v = PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_ACCESSORY_CHECK);
 	else
 		gpio_acc_5v = PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_ACCESSORY_CHECK_04);
-
+#endif
 	/*
 		token info
 		0 : force power off
@@ -1319,19 +1342,27 @@ static void qc_usb_ldo_en(int active)
 int get_accessory_irq_gpio()
 {
 	pr_info("Board : %s, %d\n", __func__, system_rev);
+#ifdef CONFIG_KOR_OPERATOR_SKT
+	return PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_ACCESSORY_CHECK);
+#else
 	if (system_rev < 0x04)
 		return PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_ACCESSORY_CHECK);
 	else
 		return PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_ACCESSORY_CHECK_04);
+#endif
 }
 
 int get_accessory_irq()
 {
 	pr_info("Board : %s, %d\n", __func__, system_rev);
+#ifdef CONFIG_KOR_OPERATOR_SKT
+	return PM8058_GPIO_IRQ(PM8058_IRQ_BASE, PMIC_GPIO_ACCESSORY_CHECK);
+#else
 	if (system_rev < 0x04)
 		return PM8058_GPIO_IRQ(PM8058_IRQ_BASE, PMIC_GPIO_ACCESSORY_CHECK);
 	else
 		return PM8058_GPIO_IRQ(PM8058_IRQ_BASE, PMIC_GPIO_ACCESSORY_CHECK_04);
+#endif
 }
 
 #if defined(CONFIG_USB_GADGET_MSM_72K) || defined(CONFIG_USB_EHCI_MSM_72K)
@@ -2517,32 +2548,6 @@ static struct platform_device msm_batt_device = {
 };
 #endif
 
-
-#if 1  // TEMP for compile
-
-// TEMP for compile
-void yda165_avdd_power_on(void)
-{
-	return;
-}
-
-void yda165_avdd_power_off(void)
-{
-	return;
-}
-
-// TEMP for compile
-int usb_access_lock = 0;
-EXPORT_SYMBOL(usb_access_lock);
-
-// TEMP for compile
-int sec_switch_get_attached_device(void)
-{
-	return 0;
-}
-EXPORT_SYMBOL(sec_switch_get_attached_device);
-
-
 unsigned int is_lpcharging_state(void)
 {
 	u32 val = charging_mode_from_boot;
@@ -2552,30 +2557,6 @@ unsigned int is_lpcharging_state(void)
 	return val;
 }
 EXPORT_SYMBOL(is_lpcharging_state);
-
-void disable_charging_before_reset(void)
-{
-	// TEMP for compile
-}
-
-#endif // TEMP for compile
-
-#ifdef CONFIG_KEYPAD_P5LTE
-#define VOLUME_DOWN		PM8058_GPIO(5)
-#define VOLUME_UP		PM8058_GPIO(6)
-
-void p5_key_gpio_init(void)
-{
-	gpio_request(PM8058_GPIO_PM_TO_SYS(VOLUME_DOWN), "volume down");
-	gpio_direction_input(PM8058_GPIO_PM_TO_SYS(VOLUME_DOWN));
-
-	gpio_request(PM8058_GPIO_PM_TO_SYS(VOLUME_UP), "volume up");
-	gpio_direction_input(PM8058_GPIO_PM_TO_SYS(VOLUME_UP));
-	
-	pr_info("key GPIO initialized.\n");
-}
-#endif
-
 
 int64_t PM8058_get_adc(int channel)
 {
@@ -2638,7 +2619,11 @@ extern s16 stmpe811_adc_get_value(u8 channel);
 
 #define GPIO_ADC_SCL_OLD		33
 #define GPIO_ADC_SDA_OLD		35
-#if defined(CONFIG_KOR_OPERATOR_LGU)
+#if defined(CONFIG_KOR_OPERATOR_SKT)
+#define GPIO_ADC_SCL	74
+#define GPIO_ADC_SCL_REV03	77
+#define GPIO_ADC_SDA	83
+#elif defined(CONFIG_KOR_OPERATOR_LGU)
 #define GPIO_ADC_SCL		73
 #define GPIO_ADC_SDA		169
 #else
@@ -2702,7 +2687,7 @@ void stmpe811_ldo_en(bool enable)
 void stmpe811_init(void)
 {
 	pr_info("%s\r\n", __func__);
-#if defined(CONFIG_USA_OPERATOR_ATT) || defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT)
+#if defined(CONFIG_USA_OPERATOR_ATT)
 	if (system_rev == 0x01) {
 		stmpe811_i2c_gpio_data.scl_pin = GPIO_ADC_SCL_OLD;
 		stmpe811_i2c_gpio_data.sda_pin = GPIO_ADC_SDA_OLD;		
@@ -2712,6 +2697,14 @@ void stmpe811_init(void)
 		stmpe811_i2c_gpio_data.scl_pin = GPIO_ADC_SCL_OLD;
 		stmpe811_i2c_gpio_data.sda_pin = GPIO_ADC_SDA_OLD;	
 	}
+#elif defined(CONFIG_KOR_OPERATOR_SKT)  
+	if (system_rev == 0x01) {
+		stmpe811_i2c_gpio_data.scl_pin = GPIO_ADC_SCL_OLD;
+		stmpe811_i2c_gpio_data.sda_pin = GPIO_ADC_SDA_OLD;		
+	} 
+	if(system_rev >= 0x07){
+		stmpe811_i2c_gpio_data.scl_pin = GPIO_ADC_SCL_REV03;
+	}
 #endif
 }
 
@@ -2719,11 +2712,16 @@ void stmpe811_gpio_init(void)
 {
 	pr_info("%s\r\n", __func__);
 
-#if defined(CONFIG_USA_OPERATOR_ATT) || defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT)
-	if (system_rev == 0x01) {
+#if defined(CONFIG_USA_OPERATOR_ATT) || defined(CONFIG_KOR_OPERATOR_SKT)
+	if (system_rev >= 0x07) {	
+		gpio_tlmm_config(GPIO_CFG(GPIO_ADC_SCL,  0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),GPIO_CFG_ENABLE);		
+		gpio_tlmm_config(GPIO_CFG(GPIO_ADC_SCL_REV03,  0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
+		gpio_tlmm_config(GPIO_CFG(GPIO_ADC_SDA,  0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
+	} else if (system_rev == 0x01){
 		gpio_tlmm_config(GPIO_CFG(GPIO_ADC_SCL_OLD,  0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
 		gpio_tlmm_config(GPIO_CFG(GPIO_ADC_SDA_OLD,  0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
-	} else if (system_rev >= 0x03) {	
+	}
+    else {		
 		gpio_tlmm_config(GPIO_CFG(GPIO_ADC_SCL,  0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
 		gpio_tlmm_config(GPIO_CFG(GPIO_ADC_SDA,  0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_2MA),GPIO_CFG_ENABLE);
 	}
@@ -2745,8 +2743,10 @@ static int check_using_stmpe811(void)
 {
 	int ret =0 ;
 #ifdef CONFIG_STMPE811_ADC
-#if defined(CONFIG_USA_OPERATOR_ATT) || defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT)
+#if defined(CONFIG_USA_OPERATOR_ATT)
 	ret = (system_rev >= 0x0003) ? 1 : 0;
+#elif defined(CONFIG_KOR_OPERATOR_SKT)
+	ret = (system_rev >= 0x0006) ? 1 : 0;
 #elif defined(CONFIG_KOR_OPERATOR_LGU)
 #if 1	/* Using STMPE811 */
 	ret = (system_rev >= 0x0004) ? 1 : 0;
@@ -3755,10 +3755,10 @@ static const u8 *mxt224_config[] = {
 #define MXT768E_MAX_MT_FINGERS		10
 #define MXT768E_CHRGTIME_BATT		64
 #define MXT768E_CHRGTIME_CHRG		64
-#define MXT768E_THRESHOLD_BATT		50
-#define MXT768E_THRESHOLD_CHRG		48
-#define MXT768E_CALCFG_BATT		210
-#define MXT768E_CALCFG_CHRG		242
+#define MXT768E_THRESHOLD_BATT		30
+#define MXT768E_THRESHOLD_CHRG		40
+#define MXT768E_CALCFG_BATT		242
+#define MXT768E_CALCFG_CHRG		114
 
 #define MXT768E_ATCHCALSTHR_NORMAL			50
 #define MXT768E_ATCHFRCCALTHR_NORMAL		50
@@ -3766,12 +3766,12 @@ static const u8 *mxt224_config[] = {
 #define MXT768E_ATCHFRCCALTHR_WAKEUP		8
 #define MXT768E_ATCHFRCCALRATIO_WAKEUP		136
 
-#define MXT768E_IDLESYNCSPERX_BATT		38
-#define MXT768E_IDLESYNCSPERX_CHRG		40
-#define MXT768E_ACTVSYNCSPERX_BATT		38
-#define MXT768E_ACTVSYNCSPERX_CHRG		40
+#define MXT768E_IDLESYNCSPERX_BATT		21
+#define MXT768E_IDLESYNCSPERX_CHRG		38
+#define MXT768E_ACTVSYNCSPERX_BATT		21
+#define MXT768E_ACTVSYNCSPERX_CHRG		38
 
-#define MXT768E_IDLEACQINT_BATT			24
+#define MXT768E_IDLEACQINT_BATT			255
 #define MXT768E_IDLEACQINT_CHRG			24
 #define MXT768E_ACTACQINT_BATT			255
 #define MXT768E_ACTACQINT_CHRG			255
@@ -3855,10 +3855,10 @@ static u8 t47_config_e[] = { PROCI_STYLUS_T47,
 };
 
 static u8 t48_config_e[] = {PROCG_NOISESUPPRESSION_T48,
-	3, 0, MXT768E_CALCFG_BATT, 0, 0, 0, 0, 0, 0, 0,
-	176, 15, 0, 6, 6, 0, 0, 48, 4, 64,
-	0, 0, 20, 0, 0, 0, 0, 15, 0, 0,
-	0, 0, 0, 0, 112, MXT768E_THRESHOLD_CHRG, 2, 16, 2, 80,
+	3, 0, MXT768E_CALCFG_BATT, 60, 0, 0, 0, 0, 0, 0,
+	112, 15, 0, 6, 6, 0, 0, 48, 4, 64,
+	0, 0, 9, 0, 0, 0, 0, 5, 0, 0,
+	0, 0, 0, 0, 112, MXT768E_THRESHOLD_BATT, 2, 16, 2, 81,
 	MXT768E_MAX_MT_FINGERS, 20, 40, 250, 250, 5, 5, 143, 50, 136,
 	30, 12, MXT768E_TCHHYST_CHRG, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3866,10 +3866,10 @@ static u8 t48_config_e[] = {PROCG_NOISESUPPRESSION_T48,
 };
 
 static u8 t48_config_chrg_e[] = {PROCG_NOISESUPPRESSION_T48,
-	3, 0, MXT768E_CALCFG_CHRG, 0, 0, 0, 0, 0, 0, 0,
-	112, 15, 0, 6, 6, 0, 0, 44, 4, 64,
+	3, 0, MXT768E_CALCFG_CHRG, 15, 0, 0, 0, 0, 3, 5,
+	96, 20, 0, 6, 6, 0, 0, 48, 4, 64,
 	0, 0, 20, 0, 0, 0, 0, 15, 0, 0,
-	0, 0, 0, 0, 112, MXT768E_THRESHOLD_CHRG, 2, 16, 8, 80,
+	0, 0, 0, 0, 96, MXT768E_THRESHOLD_CHRG, 2, 10, 5, 81,
 	MXT768E_MAX_MT_FINGERS, 20, 40, 251, 251, 6, 6, 144, 50, 136,
 	30, 12, MXT768E_TCHHYST_CHRG, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -4444,7 +4444,7 @@ static int __init gyro_device_init(void)
 		return PTR_ERR(k3g_lvs3);
 	}
 #elif defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT)
-	if(system_rev < 0x07){ 
+	if(system_rev < 0x02){ 
 		/* rev 0.0, 0.1, 0.2,  VSENSOR_1.8V from VREG_L20A */
 		k3g_l20 = regulator_get(NULL, "8058_l20");
 		if (IS_ERR(k3g_l20)) {
@@ -4518,7 +4518,7 @@ static int k3g_on(void)
 		goto err_k3g_on;
 	}
 #elif defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT)
-	if(system_rev < 0x07){ 
+	if(system_rev < 0x02){ 
 		err = regulator_enable(k3g_l20);
 		if (err) {
 			pr_err("%s: unable to enable regulator"
@@ -4580,7 +4580,7 @@ static int k3g_off(void)
 		goto err_k3g_off;
 	}
 #elif defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT)
-	if(system_rev < 0x07){ 
+	if(system_rev < 0x02){ 
 		err = regulator_disable(k3g_l20);
 		if (err) {
 			pr_err("%s: unable to enable regulator"
@@ -4982,7 +4982,7 @@ static int k3dh_akm_on(void)
 		goto err_k3dh_akm_on;
 	}
 #elif defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT)
-	if(system_rev < 0x07){
+	if(system_rev < 0x02){
 		err = regulator_enable(k3dh_akm_l20);
 		if (err) {
 			pr_err("%s: unable to enable regulator"
@@ -5042,7 +5042,7 @@ static int k3dh_akm_off(void)
 		goto err_k3dh_akm_off;
 	}
 #elif defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT)
-	if(system_rev < 0x07){
+	if(system_rev < 0x02){
 		err = regulator_disable(k3dh_akm_l20);
 		if (err) {
 			pr_err("%s: unable to enable regulator"
@@ -5963,7 +5963,7 @@ static struct xoadc_platform_data pm8058_xoadc_pdata = {
 };
 #endif
 
-#ifdef CONFIG_SAMSUNG_JACK
+#if defined(CONFIG_SAMSUNG_JACK) || defined (CONFIG_SAMSUNG_EARJACK)
 
 void *adc_handle;
 static struct regulator *vreg_earmic_bias;
@@ -5984,37 +5984,38 @@ static struct sec_jack_zone jack_zones[] = {
 	},
 };
 
-#if 0 // TEMP
-static struct sec_button_zone button_zones[] = {
-		[0] = {
-			.adc_high	= 178, // spec : 168
-			.adc_low	= 0,	
-			.key 		= KEY_MEDIA,
-		},
-		[1] = {
-			.adc_high	= 415, // spec : 391
-			.adc_low	= 179, // spec : 189
-			.key		= KEY_VOLUMEUP,
-		},	
-		[2] = {
-			.adc_high	= 1000, // spec :  832
-			.adc_low	= 416, // spec : 438
-			.key		= KEY_VOLUMEDOWN,
-		},		
+#ifdef CONFIG_SAMSUNG_EARJACK
+/* To support 3-buttons earjack */
+static struct sec_jack_buttons_zone jack_buttons_zones[] = {
+	{
+		.code		= KEY_MEDIA,
+		.adc_low		= 0,
+		.adc_high		= 180,  // spec : 168
+	},
+	{
+		.code		= KEY_VOLUMEUP,
+		.adc_low		= 190, // spec : 189
+		.adc_high		= 410, // spec : 391
+	},
+	{
+		.code		= KEY_VOLUMEDOWN,
+		.adc_low		= 430, // spec : 438
+		.adc_high		= 850, // spec :  832
+	},
 };
 #endif
 
-static int get_p5lte_det_jack_state(void)
+static int get_p8lte_det_jack_state(void)
 {
 	return(gpio_get_value_cansleep(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_EAR_DET))) ^ 1;
 }
 
-static int get_p5lte_send_key_state(void)
+static int get_p8lte_send_key_state(void)
 {
 	return(gpio_get_value_cansleep(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_SHORT_SENDEND))) ^ 1;
 }
 
-static void set_p5lte_micbias_state(bool state)
+static void set_p8lte_micbias_state(bool state)
 {
 		pr_info("sec_jack: ear micbias %s\n", state?"on":"off");
 		gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_EAR_MICBIAS_EN), state);	
@@ -6073,6 +6074,15 @@ static void sec_jack_gpio_init(void)
 {
 #if defined(CONFIG_USA_OPERATOR_ATT) || defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU) || defined(CONFIG_EUR_OPERATOR_OPEN)
 	int rc;
+#ifdef CONFIG_KOR_OPERATOR_SKT
+	rc = adc_channel_open(CHANNEL_ADC_HDSET,&adc_handle); 
+	if (rc) {
+		pr_err("%s: Unable to open ADC channel\n", __func__);
+	}
+	else{
+		pr_info("%s: open ADC channel\n", __func__); 
+	}
+#else
 	if(system_rev <= 0x3)
 	{	
 
@@ -6096,6 +6106,7 @@ static void sec_jack_gpio_init(void)
 	else{
 		pr_info("%s: open ADC channel\n", __func__); 
 	}
+#endif
 #else
 	int rc;
 	
@@ -6124,15 +6135,17 @@ static void sec_jack_gpio_init(void)
 }
 
 static struct sec_jack_platform_data sec_jack_data = {
-	.get_det_jack_state	= get_p5lte_det_jack_state,
-	.get_send_key_state	= get_p5lte_send_key_state,
-	.set_micbias_state	= set_p5lte_micbias_state,
-// TEMP	.init = sec_jack_gpio_init,
+	.get_det_jack_state	= get_p8lte_det_jack_state,
+	.get_send_key_state	= get_p8lte_send_key_state,
+	.set_micbias_state	= set_p8lte_micbias_state,
+//	.init = sec_jack_gpio_init,
 	.get_adc_value	= sec_jack_get_adc_value,
 	.zones		= jack_zones,
-// TEMP	.button_zone = button_zones,
 	.num_zones	= ARRAY_SIZE(jack_zones),
-// TEMP	.num_button_zones = ARRAY_SIZE(button_zones),
+#ifdef CONFIG_SAMSUNG_EARJACK
+	.buttons_zones = jack_buttons_zones,
+	.num_buttons_zones = ARRAY_SIZE(jack_buttons_zones),
+#endif	
 	.det_int	= PM8058_GPIO_IRQ(PM8058_IRQ_BASE, (PMIC_GPIO_EAR_DET)),
 	.send_int	= PM8058_GPIO_IRQ(PM8058_IRQ_BASE, (PMIC_GPIO_SHORT_SENDEND)),
 };
@@ -6698,7 +6711,7 @@ static struct platform_device *surf_devices[] __initdata = {
 #ifdef CONFIG_CMC624_P8LTE
 	&cmc624_i2c_gpio_device,
 #endif
-#ifdef CONFIG_SAMSUNG_JACK
+#if defined(CONFIG_SAMSUNG_JACK) || defined (CONFIG_SAMSUNG_EARJACK)
 	&sec_device_jack,
 #endif
 #ifdef CONFIG_HAPTIC_ISA1200
@@ -7308,40 +7321,6 @@ static int pm8058_gpios_init(void)
 #endif
 	};
 
-#ifdef CONFIG_KEYPAD_P5LTE
-	if ( system_rev < 0x4 ) {
-		struct pm8058_gpio_cfg volume_up = {
-				VOLUME_DOWN,
-				{
-					.direction	= PM_GPIO_DIR_IN,
-					.pull		= PM_GPIO_PULL_UP_31P5,
-					.vin_sel	= 2,
-					.out_strength	= PM_GPIO_STRENGTH_NO,
-					.function	= PM_GPIO_FUNC_NORMAL,
-					.inv_int_pol	= 1,
-				}
-		};
-
-		struct pm8058_gpio_cfg volume_down = {
-				VOLUME_UP,
-				{
-					.direction	= PM_GPIO_DIR_IN,
-					.pull		= PM_GPIO_PULL_UP_31P5,
-					.vin_sel	= 2,
-					.out_strength	= PM_GPIO_STRENGTH_NO,
-					.function	= PM_GPIO_FUNC_NORMAL,
-					.inv_int_pol	= 1,
-				}
-		};
-
-		rc = pm8058_gpio_config(volume_up.gpio,
-				&volume_up.cfg);
-		rc = pm8058_gpio_config(volume_down.gpio,
-				&volume_down.cfg);
-	}
-#endif
-
-
 struct pm_gpio main_micbiase = {
 		.direction      = PM_GPIO_DIR_IN,
 		.pull           = PM_GPIO_PULL_NO,
@@ -7349,15 +7328,30 @@ struct pm_gpio main_micbiase = {
 		.function       = PM_GPIO_FUNC_NORMAL,
 		.inv_int_pol    = 0,
 	};
-
+#if defined(CONFIG_KOR_MODEL_SHV_E150S)  //kth_1100922
+struct pm_gpio sub_micbiase = {
+		.direction      = PM_GPIO_DIR_IN,
+		.pull           = PM_GPIO_PULL_NO,
+		.vin_sel        = 2,
+		.function       = PM_GPIO_FUNC_NORMAL,
+		.inv_int_pol    = 0,
+	};
+#endif
 	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_MAIN_MICBIAS_EN), &main_micbiase);
 	if (rc) 
 	{
 		pr_err("%s PMIC_GPIO_MAIN_MICBIAS_EN config failed\n", __func__);
 		return rc;
 	}
-
-#ifdef CONFIG_SAMSUNG_JACK
+#if defined(CONFIG_KOR_MODEL_SHV_E150S) //kth_1100922
+	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_SUB_MICBIAS_EN), &sub_micbiase);
+	if (rc) 
+	{
+		pr_err("%s PMIC_GPIO_SUB_MICBIAS_EN config failed\n", __func__);
+		return rc;
+	}
+#endif
+#if defined(CONFIG_SAMSUNG_JACK) || defined (CONFIG_SAMSUNG_EARJACK)
 	struct pm_gpio ear_det = {
 		.direction      = PM_GPIO_DIR_IN,
 		.pull           = PM_GPIO_PULL_NO,
@@ -7406,6 +7400,13 @@ struct pm_gpio main_micbiase = {
 	}
 
 #if defined(CONFIG_USA_OPERATOR_ATT) || defined(CONFIG_KOR_OPERATOR_SKT)  || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU) || defined(CONFIG_EUR_OPERATOR_OPEN)
+#if defined(CONFIG_KOR_MODEL_SHV_E150S) 
+        rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_EAR_MICBIAS_EN), &ear_micbiase);
+        if (rc) {
+	 	pr_err("%s PMIC_GPIO_EAR_MICBIAS_EN config failed\n", __func__);
+	 	return rc;
+        }
+#else
 	if(system_rev >= 0x4)
         {
 	 	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_EAR_MICBIAS_EN), &ear_micbiase);
@@ -7415,7 +7416,7 @@ struct pm_gpio main_micbiase = {
 		}
         } 
 #endif
-
+#endif
 	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_MUTE_CON), &ear_amp_en);
 	if (rc) {
 		pr_err("%s PMIC_GPIO_MUTE_CON config failed\n", __func__);
@@ -7433,7 +7434,13 @@ struct pm_gpio main_micbiase = {
 		pr_err("%s:Failed to request GPIO %d\n", __func__, PMIC_GPIO_MAIN_MICBIAS_EN);
 		return rc;
 	} 
-
+#if defined(CONFIG_KOR_MODEL_SHV_E150S)  //kth_1100922
+	rc = gpio_request(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_SUB_MICBIAS_EN), "SUB_MICBIAS_EN");
+	if (rc) {
+		pr_err("%s:Failed to request GPIO %d\n", __func__, PMIC_GPIO_SUB_MICBIAS_EN);
+		return rc;
+	} 
+#endif
 	if(system_rev>=0x04)
 		gpio_direction_output(PM8058_GPIO_PM_TO_SYS(PMIC_GPIO_MUTE_CON), 1);
 	else
@@ -7459,12 +7466,14 @@ struct pm_gpio main_micbiase = {
 		.inv_int_pol    = 0,
 	};
 	int gpio_acc_check;
-
+#ifdef 	CONFIG_KOR_OPERATOR_SKT
+	gpio_acc_check = PMIC_GPIO_ACCESSORY_CHECK;
+#else
 	if (system_rev < 0x04)
 		gpio_acc_check = PMIC_GPIO_ACCESSORY_CHECK;
 	else
 		gpio_acc_check = PMIC_GPIO_ACCESSORY_CHECK_04;
-
+#endif
 	rc = pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(gpio_acc_check), &accessory_check);
 	if (rc < 0) {
 		pr_err("%s accessory_check gpio config failed\n",
@@ -7568,9 +7577,6 @@ static struct pm8xxx_keypad_platform_data ffa_keypad_data = {
 	.row_hold_ns		= 91500,
 	.wakeup			= 1,
 	.keymap_data		= &ffa_keymap_data,
-#ifdef CONFIG_KEYPAD_P5LTE
-	.init_key_gpio = p5_key_gpio_init,
-#endif	
 };
 
 static struct pm8xxx_rtc_platform_data pm8058_rtc_pdata = {
@@ -7716,7 +7722,7 @@ static struct pmic8058_othc_config_pdata othc_config_pdata_0 = {
 	.micbias_regulator = &othc_reg,
 };
 
-#if defined(CONFIG_SAMSUNG_JACK)
+#if defined(CONFIG_SAMSUNG_JACK) || defined (CONFIG_SAMSUNG_EARJACK)
 static struct pmic8058_othc_config_pdata othc_config_pdata_1 = {
 	.micbias_select = OTHC_MICBIAS_1,
 	.micbias_capability = OTHC_MICBIAS,
@@ -8903,10 +8909,17 @@ static struct msm_sdcc_pad_drv_cfg sdc4_pad_off_drv_cfg[] = {
 	{TLMM_HDRV_SDC4_DATA, GPIO_CFG_2MA}
 };
 
+#if defined(CONFIG_KOR_OPERATOR_SKT)
+static struct msm_sdcc_pad_pull_cfg sdc4_pad_off_pull_cfg[] = {
+	{TLMM_PULL_SDC4_CMD, GPIO_CFG_PULL_UP},
+	{TLMM_PULL_SDC4_DATA, GPIO_CFG_PULL_UP}
+};
+#else
 static struct msm_sdcc_pad_pull_cfg sdc4_pad_off_pull_cfg[] = {
 	{TLMM_PULL_SDC4_CMD, GPIO_CFG_PULL_DOWN},
 	{TLMM_PULL_SDC4_DATA, GPIO_CFG_PULL_DOWN}
 };
+#endif
 #endif
 
 struct msm_sdcc_pin_cfg {
@@ -9682,11 +9695,7 @@ static void __init msm8x60_init_mmc(void)
 	sdcc_vreg_data[0].vdd_data = &sdcc_vdd_reg_data[0];
 	sdcc_vreg_data[0].vdd_data->reg_name = "8901_l5";
 	sdcc_vreg_data[0].vdd_data->set_voltage_sup = 1;
-#if defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT)	
-	sdcc_vreg_data[0].vdd_data->level = 2950000;
-#else
 	sdcc_vreg_data[0].vdd_data->level = 2850000;
-#endif
 	sdcc_vreg_data[0].vdd_data->always_on = 1;
 	sdcc_vreg_data[0].vdd_data->op_pwr_mode_sup = 1;
 	sdcc_vreg_data[0].vdd_data->lpm_uA = 9000;
@@ -9744,7 +9753,7 @@ static void __init msm8x60_init_mmc(void)
 		sdcc_vreg_data[2].vdd_data->reg_name = "8058_l14";
 		sdcc_vreg_data[2].vdd_data->set_voltage_sup = 1;
 		sdcc_vreg_data[2].vdd_data->level = 2850000;
-		sdcc_vreg_data[2].vdd_data->always_on = 1;
+		sdcc_vreg_data[2].vdd_data->always_on = 0;
 		sdcc_vreg_data[2].vdd_data->op_pwr_mode_sup = 1;
 		sdcc_vreg_data[2].vdd_data->lpm_uA = 9000;
 		sdcc_vreg_data[2].vdd_data->hpm_uA = 200000;
@@ -10116,7 +10125,7 @@ static int __init magnetic_device_init(void)
 	gpio_tlmm_config(GPIO_CFG(SENSOR_AKM_SCL, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), 1);
 
 	if(system_rev >= 0x4)
-		gpio_tlmm_config(GPIO_CFG(102/*GYRO_FIFO_INT*/, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), 1);
+		gpio_tlmm_config(GPIO_CFG(102/*GYRO_FIFO_INT*/, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), 1);
 
 	return 0;
 }
@@ -10294,6 +10303,37 @@ static void __init usb_host_init(void)
 	mutex_init(&adc_lock);
 #endif
 }
+
+#if defined(CONFIG_KOR_OPERATOR_SKT)
+#if !defined(CONFIG_FB_MSM_TVOUT)
+static struct regulator *reg_8058_l13;
+static int atv_dac_power_off(void)
+{
+	int rc = 0;
+	#define _GET_REGULATOR(var, name) do {				\
+		var = regulator_get(NULL, name);			\
+		if (IS_ERR(var)) {					\
+			pr_info("'%s' regulator not found, rc=%ld\n",	\
+				name, IS_ERR(var));			\
+			var = NULL;					\
+			return -ENODEV;					\
+		}							\
+	} while (0)
+
+	if (!reg_8058_l13)
+		_GET_REGULATOR(reg_8058_l13, "8058_l13");
+	#undef _GET_REGULATOR
+
+	rc = regulator_force_disable(reg_8058_l13);
+	if (rc)
+		pr_warning("%s: '%s' regulator disable failed, rc=%d\n",
+			__func__, "8058_l13", rc);
+
+	return rc;
+}
+#endif
+#endif
+
 static int tsp_power_on(void)
 {
 	int ret = 0;
@@ -11696,6 +11736,10 @@ static void __init msm8x60_init(struct msm_board_data *board_data)
 #endif
 
 	vibrator_device_gpio_init();
+
+#if defined(CONFIG_KOR_OPERATOR_SKT)
+	atv_dac_power_off();
+#endif
 
 #ifdef CONFIG_SEC_DEBUG
 	/* Add debug level node */
