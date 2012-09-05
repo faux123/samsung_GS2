@@ -63,7 +63,6 @@ static void cbus_command_response(struct sii9234_data *sii9234);
 static irqreturn_t sii9234_irq_thread(int irq, void *data);
 
 static struct cbus_packet cbus_pkt_buf[CBUS_PKT_BUF_COUNT];
-
 #ifdef CONFIG_MHL_SWING_LEVEL
 static ssize_t sii9234_swing_test_show(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
@@ -1674,6 +1673,10 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 	cbus_read_reg(sii9234, CBUS_INT_STATUS_1_REG, &cbus_intr1);
 	cbus_read_reg(sii9234, CBUS_INT_STATUS_2_REG, &cbus_intr2);
 
+#if defined(CONFIG_JPN_MODEL_SC_05D)	
+	//Fix for MHL connected (only MHL and no HDMI and Power), Sleep mode - Kernel Panic issue
+	msleep(100);
+#endif
 	pr_debug("sii9234: irq %02x/%02x %02x/%02x %02x/%02x\n",
 			intr1, intr1_en,
 			intr4, intr4_en,
@@ -1736,7 +1739,7 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 		};
 
 		if (sii9234->rgnd != RGND_1K) {
-#if defined(CONFIG_MHL_D3_SUPPORT)
+#if defined(CONFIG_MHL_D3_SUPPORT) && !defined(CONFIG_USA_MODEL_SGH_T989)
 			sii9234->power_mode = MHL_POWER_MODE_OFF; 
 			INIT_WORK(&sii9234->redetect_work, sii9234_detection_callback);
 			disable_irq_nosync(sii9234->pdata->mhl_tx_client->irq);
@@ -1863,7 +1866,7 @@ static irqreturn_t sii9234_irq_thread(int irq, void *data)
 					goto err_exit;
 				} else 
  					sii9234->power_mode = MHL_POWER_MODE_OFF;  
-				
+
  					INIT_WORK(&sii9234->redetect_work, sii9234_detection_callback); 
  					disable_irq_nosync(sii9234->pdata->mhl_tx_client->irq); 
  			 

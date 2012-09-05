@@ -62,7 +62,11 @@ static enum power_supply_property p5_battery_properties[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_VOLTAGE_AVG,
+	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_TEMP,
 };
 
 static enum power_supply_property p5_power_properties[] = {
@@ -238,18 +242,23 @@ static void lpm_mode_check(struct battery_data *battery)
 	if (!charging_mode_from_boot)
 		return;
 
+#if !defined(CONFIG_KOR_OPERATOR_SKT) && !defined(CONFIG_KOR_OPERATOR_KT) && !defined(CONFIG_KOR_OPERATOR_LGU)
 	if (check_ta_conn(battery)) {
 		battery->charging_mode_booting = 1;
 		lpm_mode_flag = 1;
 		pr_info("%s: charging_mode_booting(%d)\n", __func__,
 			battery->charging_mode_booting);
 	} else {
-#if !defined(CONFIG_KOR_OPERATOR_SKT) && !defined(CONFIG_KOR_OPERATOR_KT) && !defined(CONFIG_KOR_OPERATOR_LGU)
 		pr_info("%s: ta no longer connected, powering off\n", __func__);
 		if (pm_power_off)
 			pm_power_off();
-#endif
 	}
+#else
+	battery->charging_mode_booting = 1;
+	lpm_mode_flag = 1;
+	pr_info("%s: charging_mode_booting(%d)\n", __func__,
+		battery->charging_mode_booting);
+#endif
 }
 #endif
 
@@ -327,7 +336,15 @@ static void p5_get_cable_status(struct battery_data *battery)
 			//IRQ_TYPE_LEVEL_LOW);
 		if (battery->pdata->inform_charger_connection)
 			battery->pdata->inform_charger_connection(false);
-		
+#if defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU)
+		/* keep 100% level incase of cable out and full charged. */
+		if (battery->info.batt_is_full &&
+			battery->info.batt_soc == 99) {
+			pr_info("%s: forcely, adjust full_cap!\n",
+				__func__);
+			fg_set_full_charged();
+		}
+#endif
 		battery->info.batt_improper_ta = 0;  // clear flag
 	}
 
@@ -928,6 +945,18 @@ static int p5_bat_get_property(struct power_supply *bat_ps,
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
 		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		val->intval = battery->info.batt_vol * 1000;
+		pr_debug("voltage = %d\n", val->intval);
+		break;
+	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
+		val->intval = battery->info.batt_vol * 1000;
+		pr_debug("avg voltage = %d\n", val->intval);
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_AVG:
+		val->intval = get_fuelgauge_value(FG_CURRENT_AVG);
+		pr_debug("level = %d\n", val->intval);
+		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = battery->info.level;
 		pr_debug("level = %d\n", val->intval);
@@ -993,7 +1022,7 @@ static struct device_attribute p5_battery_attrs[] = {
 	SEC_BATTERY_ATTR(batt_vol),
 	SEC_BATTERY_ATTR(batt_temp),
 	SEC_BATTERY_ATTR(batt_temp_cels),
-	SEC_BATTERY_ATTR(charging_source),
+	SEC_BATTERY_ATTR(batt_charging_source),
 	SEC_BATTERY_ATTR(batt_read_raw_soc),
 	SEC_BATTERY_ATTR(batt_reset_soc),
 	SEC_BATTERY_ATTR(reset_cap),
@@ -1015,8 +1044,10 @@ static struct device_attribute p5_battery_attrs[] = {
 #if 1 //def CONFIG_SAMSUNG_LPM_MODE	
 	SEC_BATTERY_ATTR(charging_mode_booting),
 	SEC_BATTERY_ATTR(batt_lp_charging),
-	SEC_BATTERY_ATTR(voltage_now),
 #endif	
+#ifdef ENABLE_SYSFS_FG_CAPACITY
+	SEC_BATTERY_ATTR(fg_capacity),
+#endif
 };
 
 enum {
@@ -1045,8 +1076,10 @@ enum {
 #if 1 //def CONFIG_SAMSUNG_LPM_MODE	
 	CHARGING_MODE_BOOTING,
 	BATT_LP_CHARGING,
-	VOLTAGE_NOW,
 #endif	
+#ifdef ENABLE_SYSFS_FG_CAPACITY
+	FG_CAPACITY,
+#endif
 };
 
 static int p5_bat_create_attrs(struct device *dev)
@@ -1171,16 +1204,17 @@ static ssize_t p5_bat_show_property(struct device *dev,
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 			test_batterydata->charging_mode_booting);
 		break;
-	case VOLTAGE_NOW:
-#if defined(CONFIG_KOR_OPERATOR_SKT) || defined(CONFIG_KOR_OPERATOR_KT) || defined(CONFIG_KOR_OPERATOR_LGU)
-		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
-			get_fuelgauge_value(FG_VOLTAGE) * 1000);
-#else
-		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
-			get_fuelgauge_value(FG_VOLTAGE));
-#endif
-		break;
 #endif		
+#ifdef ENABLE_SYSFS_FG_CAPACITY
+	case FG_CAPACITY:
+		i += scnprintf(buf + i, PAGE_SIZE - i,
+				"0x%04x 0x%04x 0x%04x 0x%04x\n",
+				get_fuelgauge_capacity(CAPACITY_TYPE_FULL),
+				get_fuelgauge_capacity(CAPACITY_TYPE_MIX),
+				get_fuelgauge_capacity(CAPACITY_TYPE_AV),
+				get_fuelgauge_capacity(CAPACITY_TYPE_REP));
+		break;
+#endif
 	default:
 		i = -EINVAL;
 	}

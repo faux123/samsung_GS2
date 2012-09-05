@@ -101,6 +101,7 @@ static void hdmi_msm_hdcp_enable(void);
 static inline void hdmi_msm_hdcp_enable(void) {}
 #endif
 
+static boolean hdmi_msm_is_dvi_mode(void);
 static void hdmi_msm_turn_on(void);
 static int hdmi_msm_audio_off(void);
 static int hdmi_msm_read_edid(void);
@@ -968,7 +969,14 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 			switch_set_state(&hdmi_msm_state->hdmi_audio_switch, 1);
 #endif
 #ifdef CONFIG_VIDEO_MHL_TABLET_V1
-			wake_lock(&hdmi_msm_state->wake_lock);
+			if (!wake_lock_active(&hdmi_msm_state->wake_lock))
+				wake_lock(&hdmi_msm_state->wake_lock);
+#endif
+#if defined(CONFIG_VIDEO_MHL_V1) || defined(CONFIG_VIDEO_MHL_V2) || defined(CONFIG_VIDEO_MHL_TABLET_V1)
+			/*sending hdmi_audio_ch*/
+			switch_set_state(&hdmi_msm_state->hdmi_audio_ch,
+				hdmi_msm_is_dvi_mode() ?
+				0 : 2);
 #endif
 #if !defined(CONFIG_VIDEO_MHL_V1) && !defined(CONFIG_VIDEO_MHL_V2)
 		} else {
@@ -980,6 +988,10 @@ static void hdmi_msm_hpd_state_work(struct work_struct *work)
 				);
 			kobject_uevent(external_common_state->uevent_kobj,
 				KOBJ_OFFLINE);
+#if defined(CONFIG_VIDEO_MHL_V1) || defined(CONFIG_VIDEO_MHL_V2) || defined(CONFIG_VIDEO_MHL_TABLET_V1)
+			/*sending hdmi_audio_ch*/
+			switch_set_state(&hdmi_msm_state->hdmi_audio_ch, -1);
+#endif
 #ifdef QCT_SWITCH_STATE_CMD
 			switch_set_state(&external_common_state->sdev, 0);
 			DEV_INFO("Hdmi state switch to %d: %s\n",
@@ -1507,8 +1519,9 @@ static void msm_hdmi_init_ddc(void)
 	 * 0x0224 HDMI_DDC_SETUP
 	 * Setting 31:24 bits : Time units to wait before timeout
 	 * when clock is being stalled by external sink device
+	 * MHL CTS 6.3.18.2 6.3.18.4 2nd entry
 	 */
-	HDMI_OUTP_ND(0x0224, 0xff000000);		// QC org
+	HDMI_OUTP_ND(0x0224, 0xff000000);
 
 	/* 0x027C HDMI_DDC_REF
 	   [6] REFTIMER_ENABLE	Enable the timer
@@ -4694,6 +4707,12 @@ static int __devinit hdmi_msm_probe(struct platform_device *pdev)
 
 	if(hdmi_msm_state->pd->bootup_ck)
 		hdmi_msm_state->boot_completion = false;
+
+#if defined(CONFIG_VIDEO_MHL_V1) || defined(CONFIG_VIDEO_MHL_V2) || defined(CONFIG_VIDEO_MHL_TABLET_V1)
+	/*uevent for info of hdmi audio channel*/
+	hdmi_msm_state->hdmi_audio_ch.name = "ch_hdmi_audio";
+	switch_dev_register(&hdmi_msm_state->hdmi_audio_ch);
+#endif
 
 	rc = request_threaded_irq(hdmi_msm_state->irq, NULL, &hdmi_msm_isr,
 		IRQF_TRIGGER_HIGH | IRQF_ONESHOT, "hdmi_msm_isr", NULL);
