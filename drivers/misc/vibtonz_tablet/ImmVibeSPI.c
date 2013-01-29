@@ -169,7 +169,7 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpDisable(VibeUInt8 nActuatorIndex
 
     if (g_bAmpEnabled)
     {
-        DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_AmpDisable.\n"));
+        //DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_AmpDisable.\n"));
 
         g_bAmpEnabled = false;
 
@@ -211,7 +211,7 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpEnable(VibeUInt8 nActuatorIndex)
 
     if (!g_bAmpEnabled)
     {
-        DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_AmpEnable.\n"));
+        //DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_AmpEnable.\n"));
         g_bAmpEnabled = true;
 
 #ifdef VIBETONZ_TUNING /* For Resonant Frequency Test */
@@ -335,7 +335,7 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_Initialize(void)
     unsigned char I2C_data[2];
     int ret = VIBE_S_SUCCESS;
 
-    DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_Initialize.\n"));
+    //DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_Initialize.\n"));
 
     SYS_API_VDDP_ON;
     SYS_API_LEN_HIGH;
@@ -473,7 +473,7 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_Initialize(void)
 */
 IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_Terminate(void)
 {
-    DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_Terminate.\n"));
+    //DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_Terminate.\n"));
     SYS_API_LEN_LOW;
 #ifdef ISA1200_HEN_ENABLE
     SYS_API_HEN_LOW;
@@ -498,7 +498,7 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_SetSamples(VibeUInt8 nActuatorIndex
             /* pForceOutputBuffer is expected to contain 1 byte */
             if (nBufferSizeInBytes != 1)
 			{
-				DbgOut((KERN_ERR "[ImmVibeSPI] ImmVibeSPI_ForceOut_SetSamples nBufferSizeInBytes =  %d \n", nBufferSizeInBytes ));
+				//DbgOut((KERN_ERR "[ImmVibeSPI] ImmVibeSPI_ForceOut_SetSamples nBufferSizeInBytes =  %d \n", nBufferSizeInBytes ));
 				return VIBE_E_FAIL;
             }
             nForce = pForceOutputBuffer[0];
