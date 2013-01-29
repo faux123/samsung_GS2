@@ -56,11 +56,11 @@ typedef VibeInt32	VibeStatus;
 
 /* Kernel Debug Macros */
 //#ifdef __KERNEL__
-    #if 1 //def VIBE_DEBUG
-        #define DbgOut(_x_) printk _x_
-    #else   /* VIBE_DEBUG */
+//    #if 1 //def VIBE_DEBUG
+//        #define DbgOut(_x_) printk _x_
+//    #else   /* VIBE_DEBUG */
         #define DbgOut(_x_)
-    #endif  /* VIBE_DEBUG */
+//    #endif  /* VIBE_DEBUG */
 //#endif  /* __KERNEL__ */
 
 #define __inp(port)         (*((volatile unsigned char *) (port)))
