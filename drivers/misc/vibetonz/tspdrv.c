@@ -135,7 +135,7 @@ static DECLARE_WORK(vibetonz_work, _set_vibetonz_work);
 static int set_vibetonz(int timeout)
 {
 	if(!timeout) {
-		printk("[VIBETONZ] DISABLE\n");
+		//printk("[VIBETONZ] DISABLE\n");
 #if defined (CONFIG_KOR_MODEL_SHV_E110S)		
 		if (get_hw_rev() > 0x00 ){
 			vib_isa1200_onoff(0);	
@@ -169,7 +169,7 @@ static int set_vibetonz(int timeout)
 		gpio_set_value(VIB_EN, VIBRATION_OFF);	
 #endif		
 	} else {
-		printk("[VIBETONZ] ENABLE\n");
+		//printk("[VIBETONZ] ENABLE\n");
 #if defined (CONFIG_KOR_MODEL_SHV_E110S)		
 		if (get_hw_rev() > 0x00 ){
 			vibtonz_en(1);
@@ -251,7 +251,7 @@ static int get_time_for_vibetonz(struct timed_output_dev *dev)
 
 static void enable_vibetonz_from_user(struct timed_output_dev *dev,int value)
 {
-	printk("[VIBETONZ] %s : time = %d msec \n",__func__,value);
+	//printk("[VIBETONZ] %s : time = %d msec \n",__func__,value);
 	hrtimer_cancel(&timer);
 	
 	/* set_vibetonz(value); */
@@ -398,7 +398,7 @@ int init_module(void)
     DbgOut((KERN_INFO "tspdrv: init_module.\n"));
 
     nRet = misc_register(&miscdev);
-	printk("[VIBETONZ:WJYOO] MISC_REGISTER nRet = %d\n", nRet);
+	//printk("[VIBETONZ:WJYOO] MISC_REGISTER nRet = %d\n", nRet);
 	if (nRet) 
     {
         DbgOut((KERN_ERR "tspdrv: misc_register failed.\n"));

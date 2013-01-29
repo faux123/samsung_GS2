@@ -134,7 +134,7 @@ static int vib_power_onoff(u8 onoff)
 	int rc;
 	struct regulator *l3b;
 
-	printk("%s: start! (%d)\n", __func__, __LINE__);
+	//printk("%s: start! (%d)\n", __func__, __LINE__);
 #if defined (CONFIG_USA_MODEL_SGH_T989) || defined (CONFIG_USA_MODEL_SGH_I727)|| defined (CONFIG_USA_MODEL_SGH_T769)
 	if (get_hw_rev() > 0x04 ) return 0;
     
@@ -146,31 +146,31 @@ static int vib_power_onoff(u8 onoff)
 	l3b = regulator_get(NULL, "8901_l3");
 	if (IS_ERR(l3b)) {
 		rc = PTR_ERR(l3b);
-		printk("%s: l3b get failed (%d)\n", __func__, rc);
+		//printk("%s: l3b get failed (%d)\n", __func__, rc);
 		return rc;
 	}
 
 	if(onoff)	{
-		printk("%s: ON! (%d)\n", __func__, __LINE__);
+		//printk("%s: ON! (%d)\n", __func__, __LINE__);
 
 		rc = regulator_set_voltage(l3b, 3300000, 3300000);
 		if (rc) {
-			printk("%s: l3b set level failed (%d)\n", __func__, rc);
+			//printk("%s: l3b set level failed (%d)\n", __func__, rc);
 			regulator_put(l3b);
 			return rc;
 		}
 
 		rc = regulator_enable(l3b);
 		if (rc) {
-			printk("%s: l3b vreg enable failed (%d)\n", __func__, rc);
+			//printk("%s: l3b vreg enable failed (%d)\n", __func__, rc);
 			regulator_put(l3b);
 			return rc;
 		}
 	} else {
-		printk("%s: OFF! (%d)\n", __func__, __LINE__);
+		//printk("%s: OFF! (%d)\n", __func__, __LINE__);
 		rc = regulator_disable(l3b);
 		if (rc) {
-			printk("%s: l3b vreg disable failed (%d)\n", __func__, rc);
+			//printk("%s: l3b vreg disable failed (%d)\n", __func__, rc);
 			regulator_put(l3b);
 			return rc;
 		}
@@ -298,7 +298,7 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpDisable(VibeUInt8 nActuatorIndex
 		vibtonz_pwm(0);
 		vibtonz_en(false);
 
-		printk("[VIBETONZ] %s \n",__func__);
+		//printk("[VIBETONZ] %s \n",__func__);
 #if defined (CONFIG_KOR_MODEL_SHV_E110S)		
 		if (get_hw_rev() > 0x00){
 			vibrator_write_register(0x30, 0x09);			
@@ -350,7 +350,7 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_AmpEnable(VibeUInt8 nActuatorIndex)
 
     if (!g_bAmpEnabled)
     {
-    	printk("[VIBETONZ] %s \n",__func__);
+    	//printk("[VIBETONZ] %s \n",__func__);
 		
 		vibtonz_en(true);
 		g_bAmpEnabled = true;
@@ -402,7 +402,7 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_Initialize(void)
 {
 	g_bAmpEnabled = true; 
 
-	printk("[VIBETONZ] %s \n",__func__);
+	//printk("[VIBETONZ] %s \n",__func__);
 
 
 #if defined (CONFIG_KOR_MODEL_SHV_E110S)		
@@ -515,7 +515,7 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_Initialize(void)
 */
 IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_Terminate(void)
 {
-	DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_Terminate.\n"));
+	//DbgOut((KERN_DEBUG "ImmVibeSPI_ForceOut_Terminate.\n"));
 
     /* 
     ** Disable amp.
@@ -573,7 +573,7 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_SetSamples(VibeUInt8 nActuatorIndex
 	case 8:
 		/* pForceOutputBuffer is expected to contain 1 byte */
 		if (nBufferSizeInBytes != 1) {
-			DbgOut((KERN_ERR "[ImmVibeSPI] ImmVibeSPI_ForceOut_SetSamples nBufferSizeInBytes =  %d\n", nBufferSizeInBytes));
+			//DbgOut((KERN_ERR "[ImmVibeSPI] ImmVibeSPI_ForceOut_SetSamples nBufferSizeInBytes =  %d\n", nBufferSizeInBytes));
 			return VIBE_E_FAIL;
 		}
 		nForce = pForceOutputBuffer[0];
