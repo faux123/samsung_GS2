@@ -108,11 +108,11 @@ VibeInt32 g_nLRA_GP_CLK_PWM_MUL = IMM_PWM_MULTIPLIER;
 
 /* Kernel Debug Macros */
 #ifdef __KERNEL__
-    #ifdef VIBE_DEBUG
-        #define DbgOut(_x_) printk _x_
-    #else   /* VIBE_DEBUG */
+//    #ifdef VIBE_DEBUG
+//        #define DbgOut(_x_) printk _x_
+//    #else   /* VIBE_DEBUG */
         #define DbgOut(_x_)
-    #endif  /* VIBE_DEBUG */
+//    #endif  /* VIBE_DEBUG */
 
     #if defined(VIBE_RECORD) && defined(VIBE_DEBUG)
         #define DbgRecorderInit(_x_) _RecorderInit _x_
