@@ -57,6 +57,7 @@ struct usb_ep;
  *	Note that for writes (IN transfers) some data bytes may still
  *	reside in a device-side FIFO when the request is reported as
  *	complete.
+ *@udc_priv: Vendor private data in usage by the UDC.
  *
  * These are allocated/freed through the endpoint they're used with.  The
  * hardware's driver can add extra per-request data to the memory it returns,
@@ -92,6 +93,7 @@ struct usb_request {
 
 	int			status;
 	unsigned		actual;
+	unsigned		udc_priv;
 };
 
 /*-------------------------------------------------------------------------*/
@@ -111,7 +113,6 @@ struct usb_ep_ops {
 	struct usb_request *(*alloc_request) (struct usb_ep *ep,
 		gfp_t gfp_flags);
 	void (*free_request) (struct usb_ep *ep, struct usb_request *req);
-
 	int (*queue) (struct usb_ep *ep, struct usb_request *req,
 		gfp_t gfp_flags);
 	int (*dequeue) (struct usb_ep *ep, struct usb_request *req);
@@ -145,6 +146,7 @@ struct usb_ep {
 	const struct usb_ep_ops	*ops;
 	struct list_head	ep_list;
 	unsigned		maxpacket:16;
+	const struct usb_endpoint_descriptor	*desc;
 };
 
 /*-------------------------------------------------------------------------*/
@@ -486,6 +488,7 @@ struct usb_gadget {
 	unsigned			b_hnp_enable:1;
 	unsigned			a_hnp_support:1;
 	unsigned			a_alt_hnp_support:1;
+	unsigned			host_request:1;
 	const char			*name;
 	struct device			dev;
 };
@@ -875,6 +878,41 @@ struct usb_endpoint_descriptor *usb_find_endpoint(
 	struct usb_descriptor_header **src,
 	struct usb_descriptor_header **copy,
 	struct usb_endpoint_descriptor *match);
+
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+/* return copy of descriptor header given original descriptor set */
+struct usb_descriptor_header *
+usb_find_descriptor_header(
+	struct usb_descriptor_header **src,
+	struct usb_descriptor_header **copy,
+	struct usb_descriptor_header *match);
+
+int usb_change_interface_num(
+	struct usb_descriptor_header **src,
+	struct usb_descriptor_header **copy,
+	struct usb_interface_descriptor *match,
+	int num);
+
+int usb_change_iad_num(
+	struct usb_descriptor_header **src,
+	struct usb_descriptor_header **copy,
+	struct usb_interface_assoc_descriptor *match,
+	int num);
+
+#include <linux/usb/cdc.h>
+int usb_change_cdc_union_num(
+	struct usb_descriptor_header **src,
+	struct usb_descriptor_header **copy,
+	struct usb_cdc_union_desc *match,
+	int num,
+	int master);
+
+int usb_change_cdc_call_mgmt_num(
+	struct usb_descriptor_header **src,
+	struct usb_descriptor_header **copy,
+	struct usb_cdc_call_mgmt_descriptor *match,
+	int num);
+#endif
 
 /**
  * usb_free_descriptors - free descriptors returned by usb_copy_descriptors()

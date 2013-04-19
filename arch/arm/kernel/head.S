@@ -362,10 +362,17 @@ __enable_mmu:
 #ifdef CONFIG_CPU_ICACHE_DISABLE
 	bic	r0, r0, #CR_I
 #endif
-	mov	r5, #(domain_val(DOMAIN_USER, DOMAIN_MANAGER) | \
-		      domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
-		      domain_val(DOMAIN_TABLE, DOMAIN_MANAGER) | \
+#ifdef CONFIG_EMULATE_DOMAIN_MANAGER_V7
+	mov	r5, #(domain_val(DOMAIN_USER, DOMAIN_CLIENT) | \
+		      domain_val(DOMAIN_KERNEL, DOMAIN_CLIENT) | \
+		      domain_val(DOMAIN_TABLE, DOMAIN_CLIENT) | \
 		      domain_val(DOMAIN_IO, DOMAIN_CLIENT))
+#else
+	mov	r5, #(domain_val(DOMAIN_USER, DOMAIN_CLIENT) | \
+		      domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
+		      domain_val(DOMAIN_TABLE, DOMAIN_CLIENT) | \
+		      domain_val(DOMAIN_IO, DOMAIN_CLIENT))
+#endif
 	mcr	p15, 0, r5, c3, c0, 0		@ load domain access register
 	mcr	p15, 0, r4, c2, c0, 0		@ load page table pointer
 	b	__turn_mmu_on
@@ -391,6 +398,17 @@ __turn_mmu_on:
 	mcr	p15, 0, r0, c1, c0, 0		@ write control reg
 	mrc	p15, 0, r3, c0, c0, 0		@ read id reg
 	mov	r3, r3
+#ifdef CONFIG_ARCH_MSM_KRAIT
+	movw	r3, 0xfc00
+	movt	r3, 0xff00
+	and	r3, r9, r3
+	movw	r4, 0x0400
+	movt 	r4, 0x5100
+	cmp	r3, r4
+	mrceq	p15, 7, r3, c15, c0, 2
+	biceq	r3, r3, #0x400
+	mcreq	p15, 7, r3, c15, c0, 2
+#endif
 	mov	r3, r13
 	mov	pc, r3
 __enable_mmu_end:

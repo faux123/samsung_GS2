@@ -91,6 +91,9 @@ static void __uart_start(struct tty_struct *tty)
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->uart_port;
 
+	if (port->ops->wake_peer)
+		port->ops->wake_peer(port);
+
 	if (!uart_circ_empty(&state->xmit) && state->xmit.buf &&
 	    !tty->stopped && !tty->hw_stopped)
 		port->ops->start_tx(port);
@@ -2002,7 +2005,11 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 		 */
 		if (port->tty && port->tty->termios && termios.c_cflag == 0)
 			termios = *(port->tty->termios);
-
+		/*
+		 * As we need to set the uart clock rate back to 7.3 MHz.
+		 * We need this change.
+		 *
+		 */
 		if (console_suspend_enabled)
 			uart_change_pm(state, 0);
 		uport->ops->set_termios(uport, &termios, NULL);
@@ -2390,8 +2397,10 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	 */
 	tty_dev = tty_register_device(drv->tty_driver, uport->line, uport->dev);
 	if (likely(!IS_ERR(tty_dev))) {
-		device_init_wakeup(tty_dev, 1);
-		device_set_wakeup_enable(tty_dev, 0);
+		// NO need to call both init and enable(0).
+		device_set_wakeup_capable(tty_dev, 1);
+		// device_init_wakeup(tty_dev, 1);
+		// device_set_wakeup_enable(tty_dev, 0);
 	} else
 		printk(KERN_ERR "Cannot register tty device on line %d\n",
 		       uport->line);

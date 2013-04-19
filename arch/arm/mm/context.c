@@ -14,12 +14,76 @@
 #include <linux/percpu.h>
 
 #include <asm/mmu_context.h>
+#include <asm/thread_notify.h>
 #include <asm/tlbflush.h>
 
-static DEFINE_SPINLOCK(cpu_asid_lock);
+#include <mach/msm_rtb.h>
+
+static DEFINE_RAW_SPINLOCK(cpu_asid_lock);
 unsigned int cpu_last_asid = ASID_FIRST_VERSION;
 #ifdef CONFIG_SMP
 DEFINE_PER_CPU(struct mm_struct *, current_mm);
+#endif
+
+static void write_contextidr(u32 contextidr)
+{
+	uncached_logk(LOGK_CTXID, (void *)contextidr);
+	asm("mcr	p15, 0, %0, c13, c0, 1" : : "r" (contextidr));
+	isb();
+}
+
+#ifdef CONFIG_PID_IN_CONTEXTIDR
+static u32 read_contextidr(void)
+{
+	u32 contextidr;
+	asm("mrc	p15, 0, %0, c13, c0, 1" : "=r" (contextidr));
+	return contextidr;
+}
+
+static int contextidr_notifier(struct notifier_block *unused, unsigned long cmd,
+			       void *t)
+{
+	unsigned long flags;
+	u32 contextidr;
+	pid_t pid;
+	struct thread_info *thread = t;
+
+	if (cmd != THREAD_NOTIFY_SWITCH)
+		return NOTIFY_DONE;
+
+	pid = task_pid_nr(thread->task);
+	local_irq_save(flags);
+	contextidr = read_contextidr();
+	contextidr &= ~ASID_MASK;
+	contextidr |= pid << ASID_BITS;
+	write_contextidr(contextidr);
+	local_irq_restore(flags);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block contextidr_notifier_block = {
+	.notifier_call = contextidr_notifier,
+};
+
+static int __init contextidr_notifier_init(void)
+{
+	return thread_register_notifier(&contextidr_notifier_block);
+}
+arch_initcall(contextidr_notifier_init);
+
+static void set_asid(unsigned int asid)
+{
+	u32 contextidr = read_contextidr();
+	contextidr &= ASID_MASK;
+	contextidr |= asid & ~ASID_MASK;
+	write_contextidr(contextidr);
+}
+#else
+static void set_asid(unsigned int asid)
+{
+	write_contextidr(asid);
+}
 #endif
 
 /*
@@ -31,14 +95,13 @@ DEFINE_PER_CPU(struct mm_struct *, current_mm);
 void __init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
 	mm->context.id = 0;
-	spin_lock_init(&mm->context.id_lock);
+	raw_spin_lock_init(&mm->context.id_lock);
 }
 
 static void flush_context(void)
 {
 	/* set the reserved ASID before flushing the TLB */
-	asm("mcr	p15, 0, %0, c13, c0, 1\n" : : "r" (0));
-	isb();
+	set_asid(0);
 	local_flush_tlb_all();
 	if (icache_is_vivt_asid_tagged()) {
 		__flush_icache_all();
@@ -58,7 +121,7 @@ static void set_mm_context(struct mm_struct *mm, unsigned int asid)
 	 * the broadcast. This function is also called via IPI so the
 	 * mm->context.id_lock has to be IRQ-safe.
 	 */
-	spin_lock_irqsave(&mm->context.id_lock, flags);
+	raw_spin_lock_irqsave(&mm->context.id_lock, flags);
 	if (likely((mm->context.id ^ cpu_last_asid) >> ASID_BITS)) {
 		/*
 		 * Old version of ASID found. Set the new one and
@@ -67,7 +130,7 @@ static void set_mm_context(struct mm_struct *mm, unsigned int asid)
 		mm->context.id = asid;
 		cpumask_clear(mm_cpumask(mm));
 	}
-	spin_unlock_irqrestore(&mm->context.id_lock, flags);
+	raw_spin_unlock_irqrestore(&mm->context.id_lock, flags);
 
 	/*
 	 * Set the mm_cpumask(mm) bit for the current CPU.
@@ -99,8 +162,7 @@ static void reset_context(void *info)
 	set_mm_context(mm, asid);
 
 	/* set the new ASID */
-	asm("mcr	p15, 0, %0, c13, c0, 1\n" : : "r" (mm->context.id));
-	isb();
+	set_asid(mm->context.id);
 }
 
 #else
@@ -117,7 +179,7 @@ void __new_context(struct mm_struct *mm)
 {
 	unsigned int asid;
 
-	spin_lock(&cpu_asid_lock);
+	raw_spin_lock(&cpu_asid_lock);
 #ifdef CONFIG_SMP
 	/*
 	 * Check the ASID again, in case the change was broadcast from
@@ -125,7 +187,7 @@ void __new_context(struct mm_struct *mm)
 	 */
 	if (unlikely(((mm->context.id ^ cpu_last_asid) >> ASID_BITS) == 0)) {
 		cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
-		spin_unlock(&cpu_asid_lock);
+		raw_spin_unlock(&cpu_asid_lock);
 		return;
 	}
 #endif
@@ -153,5 +215,5 @@ void __new_context(struct mm_struct *mm)
 	}
 
 	set_mm_context(mm, asid);
-	spin_unlock(&cpu_asid_lock);
+	raw_spin_unlock(&cpu_asid_lock);
 }

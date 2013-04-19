@@ -56,6 +56,22 @@ config TOUCHSCREEN_AD7877
 	  module will be called ad7877.
 
 config TOUCHSCREEN_AD7879
+	tristate
+	default n
+
+config TOUCHSCREEN_ATMEL_MAXTOUCH
+       tristate "Atmel maXTouch based touchscreens"
+       depends on I2C
+       default n
+       help
+         Say Y here if you have an Atmel Maxtouch based touchscreen.
+
+         If unsure, say N.
+
+         To compile this driver as a module, choose M here: the
+         module will be called maXTouch.
+
+config TOUCHSCREEN_AD7879
 	tristate "Analog Devices AD7879-1/AD7889-1 touchscreen interface"
 	help
 	  Say Y here if you want to support a touchscreen interface using
@@ -86,17 +102,17 @@ config TOUCHSCREEN_AD7879_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7879-spi.
 
-config TOUCHSCREEN_ATMEL_MXT
-	tristate "Atmel mXT I2C Touchscreen"
+config TOUCHSCREEN_ATMEL_MAXTOUCH
+       tristate "Atmel maXTouch based touchscreens"
 	depends on I2C
+       default n
 	help
-	  Say Y here if you have Atmel mXT series I2C touchscreen,
-	  such as AT42QT602240/ATMXT224, connected to your system.
+         Say Y here if you have an Atmel Maxtouch based touchscreen.
 
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called atmel_mxt_ts.
+         module will be called maXTouch.
 
 config TOUCHSCREEN_BITSY
 	tristate "Compaq iPAQ H3600 (Bitsy) touchscreen"
@@ -238,6 +254,19 @@ config TOUCHSCREEN_WACOM_W8001
 	  To compile this driver as a module, choose M here: the
 	  module will be called wacom_w8001.
 
+config EPEN_WACOM_G5SP
+	tristate "Wacom G5SP penabled i2c touchscreen"
+	depends on SERIO
+	help
+	  Say Y here if you have an Wacom G5SP penabled i2c touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wacom_G5SP.
+
+
 config TOUCHSCREEN_LPC32XX
 	tristate "LPC32XX touchscreen controller"
 	depends on ARCH_LPC32XX
@@ -363,6 +392,37 @@ config TOUCHSCREEN_PENMOUNT
 	  To compile this driver as a module, choose M here: the
 	  module will be called penmount.
 
+config TOUCHSCREEN_MSM
+	bool "Qualcomm MSM touchscreen controller"
+	depends on ARCH_MSM7X30 && MARIMBA_TSADC
+	default n
+	help
+	  Say Y here if you have a 4-wire resistive touchscreen panel
+	  connected to the TSSC touchscreen controller on a
+	  Qualcomm MSM/QSD based SoC.
+
+config TOUCHSCREEN_QT602240
+	tristate "QT602240 I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have the AT42QT602240/ATMXT224 I2C touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qt602240_ts.
+
+config TOUCHSCREEN_ATMEL_MXT540E
+	tristate "Atmel MXT540E Touchscreen Interface"
+	depends on I2C
+	default n
+	help
+		Say Y here if you want support for atmel_MXT540E touchscreen controllers.
+		
+		To compile this driver as a module, choose M here: the
+		module will be called mxt540e_q1.
+
 config TOUCHSCREEN_MIGOR
 	tristate "Renesas MIGO-R touchscreen"
 	depends on SH_MIGOR && I2C
@@ -382,6 +442,24 @@ config TOUCHSCREEN_TNETV107X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tnetv107x-ts.
+
+config TOUCHSCREEN_SYNAPTICS_I2C_RMI
+	tristate "Synaptics i2c touchscreen"
+	depends on I2C
+	help
+	  This enables support for Synaptics RMI over I2C based touchscreens.
+
+config TOUCHSCREEN_SYNAPTICS_RMI4_I2C
+	tristate "Synaptics i2c touchscreen(ClearPad 3000)"
+	depends on I2C
+	select SYNA_MULTI_TOUCH
+	help
+	  This enables support for Synaptics RMI over I2C based touchscreens(ClearPad 3000).
+
+config SYNA_MULTI_TOUCH
+	tristate "Synaptics i2c touchscreen(ClearPad 3000) MutilTouch support"
+	depends on TOUCHSCREEN_SYNAPTICS_RMI4_I2C
+	default y
 
 config TOUCHSCREEN_TOUCHRIGHT
 	tristate "Touchright serial touchscreen"
@@ -673,6 +751,27 @@ config TOUCHSCREEN_TSC2007
 	  To compile this driver as a module, choose M here: the
 	  module will be called tsc2007.
 
+config TOUCHSCREEN_MSM_LEGACY
+	default n
+	tristate "MSM Touchscreen"
+	depends on ARCH_MSM && !ARCH_MSM7X30
+	help
+	  Say Y here if you have a touchscreen interface using MSM
+	  touchscreen controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called msm_touch.
+
+config ANDROID_TOUCHSCREEN_MSM_HACKS
+	default y
+	depends on TOUCHSCREEN_MSM_LEGACY
+	bool "Android MSM Touchscreen hacks"
+	help
+	  Say Y here if you are running Android framework on Qualcomm
+	  MSM/QSD based Surf or FFAs. These hacks are required inorder
+	  to Android framework to receive adjusted x, y co-ordinates
+	  until proper calibration framework is in place.
+
 config TOUCHSCREEN_W90X900
 	tristate "W90P910 touchscreen driver"
 	depends on HAVE_CLK
@@ -726,4 +825,58 @@ config TOUCHSCREEN_TPS6507X
 	  To compile this driver as a module, choose M here: the
 	  module will be called tps6507x_ts.
 
+config TOUCHSCREEN_CY8C_TS
+	tristate "Cypress TMA300-TMG200 based touchscreens"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you have a Cypress TMA300/TMG200 based touchscreen.
+	  TMA300 is a multi-touch screen which can report upto 10
+	  touches at a time. TMG200 supports 2 touches.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cy8c_ts.
+
+config TOUCHSCREEN_CYTTSP_I2C
+       tristate "Cypress TTSP based touchscreens"
+       depends on I2C
+       default n
+       help
+         Say Y here if you have a Cypress TTSP based touchscreen.
+         TMA300 is a multi-touch screen which can report upto 10
+         touches at a time.
+
+         If unsure, say N.
+
+         To compile this driver as a module, choose M here: the
+         module will be called cyttsp-i2c.
+         
+config TOUCHSCREEN_MELFAS
+	tristate "MELFAS touchscreen driver"
+	depends on I2C
+	help	  
+   	  Say Y here if you have a MELFAS touchscreen.
+   	  
+   	  If unsure, say N.
+
+
+config EPEN_WACOM_G5SP
+	tristate "WACOM I2C Touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have the WACOM touchscreen
+	  connected to your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called Wacom_w8001.
+
+config SHAPE_TOUCH
+	bool "shape touch feature for Atmel TSP drivers"
+	default n
+	depends on TOUCHSCREEN_ATMEL_MXT540E
+	
 endif

@@ -2,6 +2,7 @@
 # Makefile for the Linux Bluetooth HCI device drivers.
 #
 
+obj-$(CONFIG_BT_HCISMD)		+= hci_smd.o
 obj-$(CONFIG_BT_HCIVHCI)	+= hci_vhci.o
 obj-$(CONFIG_BT_HCIUART)	+= hci_uart.o
 obj-$(CONFIG_BT_HCIBCM203X)	+= bcm203x.o
@@ -28,4 +29,19 @@ hci_uart-$(CONFIG_BT_HCIUART_H4)	+= hci_h4.o
 hci_uart-$(CONFIG_BT_HCIUART_BCSP)	+= hci_bcsp.o
 hci_uart-$(CONFIG_BT_HCIUART_LL)	+= hci_ll.o
 hci_uart-$(CONFIG_BT_HCIUART_ATH3K)	+= hci_ath.o
+hci_uart-$(CONFIG_BT_HCIUART_IBS)	+= hci_ibs.o
 hci_uart-objs				:= $(hci_uart-y)
+
+obj-$(CONFIG_BT_BCM4330)		+= bluesleep_bcm.o
+
+ifeq ($(CONFIG_KOR_MODEL_SHV_E150S),y)
+obj-$(CONFIG_BT_MSM_SLEEP)              += msm_bt_sleep.o
+msm_bt_sleep-objs                       := bluesleep.o
+obj-$(CONFIG_MSM_BT_POWER)		+= bluetooth-power.o
+endif
+
+ifeq ($(CONFIG_JPN_MODEL_SC_01E),y)
+obj-$(CONFIG_BT_MSM_SLEEP)              += msm_bt_sleep.o
+msm_bt_sleep-objs                       := bluesleep.o
+obj-$(CONFIG_MSM_BT_POWER)		+= bluetooth-power.o
+endif

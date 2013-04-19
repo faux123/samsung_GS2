@@ -22,6 +22,10 @@
 #ifdef __KERNEL__
 
 #include <linux/rwsem.h>
+#ifdef CONFIG_USB_HOST_NOTIFY
+#include <linux/host_notify.h>
+#endif
+
 
 #define MAX_TOPO_LEVEL		6
 
@@ -170,6 +174,10 @@ struct usb_hcd {
 #define	HC_IS_RUNNING(state) ((state) & __ACTIVE)
 #define	HC_IS_SUSPENDED(state) ((state) & __SUSPEND)
 
+#ifdef CONFIG_USB_HOST_NOTIFY
+	struct host_notify_dev ndev;
+	int host_notify;
+#endif
 	/* more shared queuing code would be good; it should support
 	 * smarter scheduling, handle transaction translators, etc;
 	 * input size of periodic table to an interrupt scheduler.
@@ -381,9 +389,18 @@ extern struct usb_hcd *usb_create_shared_hcd(const struct hc_driver *driver,
 extern struct usb_hcd *usb_get_hcd(struct usb_hcd *hcd);
 extern void usb_put_hcd(struct usb_hcd *hcd);
 extern int usb_hcd_is_primary_hcd(struct usb_hcd *hcd);
+#ifdef CONFIG_USB
 extern int usb_add_hcd(struct usb_hcd *hcd,
 		unsigned int irqnum, unsigned long irqflags);
 extern void usb_remove_hcd(struct usb_hcd *hcd);
+#else
+static inline int
+usb_add_hcd(struct usb_hcd *hcd, unsigned int irqnum, unsigned long irqflags)
+{
+	return 0;
+}
+static inline void usb_remove_hcd(struct usb_hcd *hcd) {}
+#endif
 
 struct platform_device;
 extern void usb_hcd_platform_shutdown(struct platform_device *dev);

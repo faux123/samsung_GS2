@@ -139,6 +139,7 @@ extern void put_online_cpus(void);
 #define unregister_hotcpu_notifier(nb)	unregister_cpu_notifier(nb)
 int cpu_down(unsigned int cpu);
 
+#ifndef CONFIG_SEC_DVFS_DUAL
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
 extern void cpu_hotplug_driver_lock(void);
 extern void cpu_hotplug_driver_unlock(void);
@@ -150,6 +151,10 @@ static inline void cpu_hotplug_driver_lock(void)
 static inline void cpu_hotplug_driver_unlock(void)
 {
 }
+#endif
+#else
+extern void cpu_hotplug_driver_lock(void);
+extern void cpu_hotplug_driver_unlock(void);
 #endif
 
 #else		/* CONFIG_HOTPLUG_CPU */
@@ -173,5 +178,12 @@ extern void enable_nonboot_cpus(void);
 static inline int disable_nonboot_cpus(void) { return 0; }
 static inline void enable_nonboot_cpus(void) {}
 #endif /* !CONFIG_PM_SLEEP_SMP */
+
+#define IDLE_START 1
+#define IDLE_END 2
+
+void idle_notifier_register(struct notifier_block *n);
+void idle_notifier_unregister(struct notifier_block *n);
+void idle_notifier_call_chain(unsigned long val);
 
 #endif /* _LINUX_CPU_H_ */

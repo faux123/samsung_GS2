@@ -19,6 +19,7 @@ obj-$(CONFIG_PHANTOM)		+= phantom.o
 obj-$(CONFIG_SENSORS_BH1780)	+= bh1780gli.o
 obj-$(CONFIG_SENSORS_BH1770)	+= bh1770glc.o
 obj-$(CONFIG_SENSORS_APDS990X)	+= apds990x.o
+obj-$(CONFIG_ANDROID_PMEM)      += pmem.o
 obj-$(CONFIG_SGI_IOC4)		+= ioc4.o
 obj-$(CONFIG_ENCLOSURE_SERVICES) += enclosure.o
 obj-$(CONFIG_KGDB_TESTS)	+= kgdbts.o
@@ -33,6 +34,7 @@ obj-$(CONFIG_SENSORS_TSL2550)	+= tsl2550.o
 obj-$(CONFIG_EP93XX_PWM)	+= ep93xx_pwm.o
 obj-$(CONFIG_DS1682)		+= ds1682.o
 obj-$(CONFIG_TI_DAC7512)	+= ti_dac7512.o
+obj-$(CONFIG_UID_STAT)		+= uid_stat.o
 obj-$(CONFIG_C2PORT)		+= c2port/
 obj-$(CONFIG_IWMC3200TOP)      += iwmc3200top/
 obj-$(CONFIG_HMC6352)		+= hmc6352.o
@@ -46,3 +48,36 @@ obj-y				+= ti-st/
 obj-$(CONFIG_AB8500_PWM)	+= ab8500-pwm.o
 obj-y				+= lis3lv02d/
 obj-y				+= carma/
+obj-$(CONFIG_WL127X_RFKILL)	+= wl127x-rfkill.o
+obj-$(CONFIG_APANIC)		+= apanic.o
+obj-$(CONFIG_SENSORS_AK8975)	+= ak8975.o
+obj-$(CONFIG_SENSORS_K3DH)	+= k3dh.o
+obj-$(CONFIG_TSIF) += msm_tsif.o
+msm_tsif-objs := tsif.o
+obj-$(CONFIG_TSIF_CHRDEV) += tsif_chrdev.o
+obj-$(CONFIG_TSPP) += tspp.o
+obj-$(CONFIG_SAMSUNG_JACK) += sec_jack.o
+obj-$(CONFIG_SAMSUNG_EARJACK) += sec_earjack.o
+obj-$(CONFIG_HAPTIC_ISA1200)		+= isa1200.o
+obj-$(CONFIG_PMIC8058_PWM) += pmic8058-pwm.o
+obj-$(CONFIG_PMIC8XXX_VIBRATOR) += pm8xxx-vibrator.o
+obj-$(CONFIG_PMIC8XXX_NFC) += pm8xxx-nfc.o
+obj-$(CONFIG_PMIC8XXX_UPL) += pm8xxx-upl.o
+obj-$(CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_DEEP_POWER_DOWN) \
+	+= msm_migrate_pages.o
+obj-$(CONFIG_PMIC8058_XOADC) += pmic8058-xoadc.o
+obj-$(CONFIG_TZCOM) += tzcom.o
+obj-$(CONFIG_QSEECOM) += qseecom.o
+obj-$(CONFIG_QFP_FUSE) += qfp_fuse.o
+obj-$(CONFIG_VIBETONZ) += vibetonz/
+ifeq ($(CONFIG_USE_A2220_B),y)
+obj-$(CONFIG_VP_A2220) += a2220b.o
+else
+obj-$(CONFIG_VP_A2220) += a2220.o
+endif
+obj-$(CONFIG_STMPE811_ADC) += stmpe811.o
+obj-$(CONFIG_SEC_MISC) += sec_misc.o sec_level.o sec_param.o
+#debug setting
+ifeq ($(CONFIG_SENSORS_CORE),y)
+EXTRA_CFLAGS += -DSENSORS_LOG_DUMP
+endif
