@@ -414,12 +414,13 @@ void touchkey_resume_func(struct work_struct *p)
 
 static irqreturn_t touchkey_interrupt(int irq, void *dummy)  // ks 79 - threaded irq(becuase of pmic gpio int pin)-> when reg is read in work_func, data0 is always release. so temporarily move the work_func to threaded irq.
 {
-#if defined(CONFIG_KEYPAD_CYPRESS_TOUCH_BLN)
-        printk(KERN_ERR "[TouchKey] interrupt touchkey\n");
-#endif
     u8 data[3];
     int ret;
     int retry = 10;
+
+#if defined(CONFIG_KEYPAD_CYPRESS_TOUCH_BLN)
+	printk(KERN_ERR "[TouchKey] interrupt touchkey\n");
+#endif
 
     set_touchkey_debug('I');
     disable_irq_nosync(IRQ_TOUCHKEY_INT);
@@ -966,14 +967,14 @@ static struct early_suspend bln_suspend_data = {
 };
 
 static void enable_touchkey_backlights(void){
-        printk(KERN_ERR "[TouchKey] enable LED from BLN app\n");
         signed char int_data[] ={0x10};
+        printk(KERN_ERR "[TouchKey] enable LED from BLN app\n");
         i2c_touchkey_write(int_data, 1 );
 }
 
 static void disable_touchkey_backlights(void){
-        printk(KERN_ERR "[TouchKey] disable LED from BLN app\n");
         signed char int_data[] ={0x20};
+        printk(KERN_ERR "[TouchKey] disable LED from BLN app\n");
         i2c_touchkey_write(int_data, 1 );
 }
 
