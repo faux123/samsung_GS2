@@ -41,6 +41,7 @@
 #include <linux/i2c/isa1200.h>
 #include <linux/dma-mapping.h>
 #include <linux/i2c/bq27520.h>
+#include <linux/msm_tsens.h>
 
 #if defined(CONFIG_TOUCHSCREEN_ATMEL_MXT540E)
 #include <linux/i2c/mxt540e_q1.h>
@@ -8285,10 +8286,19 @@ static struct platform_device bcm4330_bluetooth_device = {
 };
 #endif
 
+#ifdef CONFIG_THERMAL_TSENS8X60
+static struct tsens_platform_data msm_tsens_pdata  = {
+		.slope 			= {702, 702, 702, 702, 702},
+		.tsens_factor		= 1000,
+		.hw_type		= MSM_8660,
+		.tsens_num_sensor	= 6,
+};
+#else
 static struct platform_device msm_tsens_device = {
 	.name   = "tsens-tm",
 	.id = -1,
 };
+#endif
 
 #ifdef CONFIG_VP_A2220
 extern int a2220_ctrl(unsigned int cmd , unsigned long arg);
@@ -9528,7 +9538,9 @@ static struct platform_device *surf_devices[] __initdata = {
 	&msm_device_rng,
 #endif
 
+#ifndef CONFIG_THERMAL_TSENS
 	&msm_tsens_device,
+#endif
 	&msm_rpm_device,
 #ifdef CONFIG_ION_MSM
 	&ion_dev,
@@ -16823,6 +16835,10 @@ static void __init msm8x60_init(struct msm_board_data *board_data)
 #endif
 
 	pmic_reset_irq = PM8058_IRQ_BASE + PM8058_RESOUT_IRQ;
+
+#ifdef CONFIG_THERMAL_TSENS8X60
+	msm_tsens_early_init(&msm_tsens_pdata);
+#endif
 
 	/*
 	 * Initialize RPM first as other drivers and devices may need
